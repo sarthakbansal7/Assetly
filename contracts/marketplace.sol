@@ -101,5 +101,23 @@ contract Marketplace is ReentrancyGuard {
         emit AssetSold(tokenId, listing.seller, msg.sender, listing.price);
     }
 
-   
+    // Add function for claiming pending refunds
+    function claimRefund(uint256 tokenId) external nonReentrant {
+        uint256 refundAmount = _pendingRefunds[tokenId][msg.sender];
+        require(refundAmount > 0, "No refund available");
+        
+        _pendingRefunds[tokenId][msg.sender] = 0;
+        
+        (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
+        if (!success) revert RefundFailed();
+    }
+
+    function cancelListing(uint256 tokenId) external {
+        Listing storage listing = listings[tokenId];
+        require(listing.seller == msg.sender, "Not the seller");
+        require(listing.isActive, "Listing not active");
+
+        listing.isActive = false;
+        emit ListingCancelled(tokenId, msg.sender);
+    }
 }
