@@ -58,5 +58,14 @@ contract IssuerRegistry {
         emit IssuerCapGranted(issuer);
     }
 
-    
+    function deactivateIssuer(address issuer) external onlyAdmin {
+        require(issuers[issuer].active, "Issuer not found or inactive");
+        issuers[issuer].active = false;
+        issuers[issuer].hasIssuerCap = false;
+        emit IssuerDeactivated(issuer);
+    }
+
+    function isValidIssuer(address issuer) public view returns (bool) {
+        return issuers[issuer].active && issuers[issuer].hasIssuerCap;
+    }
 }
