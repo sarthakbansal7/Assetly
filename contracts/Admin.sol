@@ -26,5 +26,26 @@ contract Admin is Ownable {
         _;
     }
 
-    
+    function setAdmin(address newAdmin) external onlyOwner {
+        require(newAdmin != address(0), "Invalid admin address");
+        if (_admin != address(0)) revert AdminAlreadySet();
+        _admin = newAdmin;
+        emit AdminSet(newAdmin);
+    }
+
+    function pausePlatform() external onlyAdmin {
+        if (paused) revert AlreadyPaused();
+        paused = true;
+        emit PlatformPaused(msg.sender);
+    }
+
+    function unpausePlatform() external onlyAdmin {
+        if (!paused) revert AlreadyActive();
+        paused = false;
+        emit PlatformUnpaused(msg.sender);
+    }
+
+    function getAdmin() public view returns (address) {
+        return _admin;
+    }
 }
