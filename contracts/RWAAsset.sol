@@ -12,7 +12,6 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
         address issuer;
         string metadataUri;
         AssetType assetType;
-        uint256 valuation;
         uint256 maturity;
         uint256 apy;
         bool hasMaturity;
@@ -32,15 +31,13 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
         uint256 indexed tokenId, 
         address indexed issuer, 
         AssetType assetType, 
-        uint256 amount,
-        uint256 valuation
+        uint256 amount
     );
     // Events for burn operations
     event AssetBurned(uint256 indexed tokenId, address indexed account, uint256 amount);
     
     error InvalidMetadataURI();
     error InvalidAssetType();
-    error InvalidValuation();
     error InvalidAmount();
     // Additional error for burn operations
     error ERC1155MissingApprovalForAll(address operator, address owner);
@@ -70,7 +67,6 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
     function mintAsset(
         string memory metadataUri,
         uint8 assetTypeIndex,
-        uint256 valuation,
         uint256 amount,
         bool hasMaturity,
         uint256 maturity,
@@ -84,7 +80,6 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
         
         if (bytes(metadataUri).length == 0) revert InvalidMetadataURI();
         if (assetTypeIndex > uint8(AssetType.Custom)) revert InvalidAssetType();
-        if (valuation == 0) revert InvalidValuation();
         if (amount == 0) revert InvalidAmount();
 
         _tokenIds++;
@@ -94,7 +89,6 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
             issuer: msg.sender,
             metadataUri: metadataUri,
             assetType: AssetType(assetTypeIndex),
-            valuation: valuation,
             maturity: maturity,
             apy: apy,
             hasMaturity: hasMaturity,
@@ -103,7 +97,7 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
         });
 
         _mint(msg.sender, newTokenId, amount, "");
-        emit AssetMinted(newTokenId, msg.sender, AssetType(assetTypeIndex), amount, valuation);
+        emit AssetMinted(newTokenId, msg.sender, AssetType(assetTypeIndex), amount, 0);
 
         return newTokenId;
     }
@@ -140,6 +134,5 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
         
         emit AssetBurned(id, account, amount);
     }
-
 
 }
