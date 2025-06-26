@@ -35,11 +35,15 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
         uint256 amount,
         uint256 valuation
     );
+    // Events for burn operations
+    event AssetBurned(uint256 indexed tokenId, address indexed account, uint256 amount);
     
     error InvalidMetadataURI();
     error InvalidAssetType();
     error InvalidValuation();
     error InvalidAmount();
+    // Additional error for burn operations
+    error ERC1155MissingApprovalForAll(address operator, address owner);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
@@ -73,7 +77,7 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
         bool hasApy,
         uint256 apy
     ) external nonReentrant returns (uint256) {
-        require(issuerRegistry.isValidIssuer(msg.sender), "Not authorized issuer");
+        
         
         if (bytes(metadataUri).length == 0) revert InvalidMetadataURI();
         if (assetTypeIndex > uint8(AssetType.Custom)) revert InvalidAssetType();
@@ -112,4 +116,27 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
     function isIssuer(address account) external view returns (bool) {
         return issuerRegistry.isValidIssuer(account);
     }
+
+    /**
+     * @notice Burns tokens from an account (for CCIP cross-chain transfers)
+     * @dev Only marketplace can call this function
+     * @param account Address to burn tokens from
+     * @param id Token ID to burn
+     * @param amount Amount to burn
+     */
+    function burn(address account, uint256 id, uint256 amount) external onlyMarketplace {
+        // Check if marketplace is approved if not the token owner
+        if (account != msg.sender && !isApprovedForAll(account, msg.sender)) {
+            revert ERC1155MissingApprovalForAll(msg.sender, account);
+        }
+
+        _burn(account, id, amount);
+        
+        // Update total supply
+        assets[id].totalSupply -= amount;
+        
+        emit AssetBurned(id, account, amount);
+    }
+
+
 }
