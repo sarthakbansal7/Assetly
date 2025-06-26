@@ -77,7 +77,10 @@ contract RWAAsset is ERC1155, ReentrancyGuard {
         bool hasApy,
         uint256 apy
     ) external nonReentrant returns (uint256) {
-        
+        require(
+            issuerRegistry.isValidIssuer(msg.sender) || msg.sender == marketplace, 
+            "Not authorized issuer or marketplace"
+        );
         
         if (bytes(metadataUri).length == 0) revert InvalidMetadataURI();
         if (assetTypeIndex > uint8(AssetType.Custom)) revert InvalidAssetType();
