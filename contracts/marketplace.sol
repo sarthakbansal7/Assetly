@@ -1,136 +1,136 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.24;
 
-import "./RWAAsset.sol";
-import "./Admin.sol";
-import "./IssuerRegistry.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {AssetToken} from "./AssetToken.sol";
 
-contract Marketplace is ReentrancyGuard {
+/**
+ * @title Marketplace for AssetToken (ERC1155)
+ * @notice Only supports listing, local buy, cross-chain buy, and approval management.
+ */
+contract Marketplace {
     struct Listing {
-        uint256 tokenId;
-        address seller;
+        address issuer;
         uint256 price;
-        uint256 timestamp;
-        bool isActive;
+        uint256 amount;
     }
 
-    Admin public immutable admin;
-    RWAAsset public immutable rwaAsset;
-    IssuerRegistry public immutable issuerRegistry;
-    
+    AssetToken public immutable assetToken;
+    // tokenId => Listing
     mapping(uint256 => Listing) public listings;
-    mapping(uint256 => bool) private _assetSold;
-    mapping(uint256 => mapping(address => uint256)) private _pendingRefunds;
-    mapping(address => uint256[]) private _ownedAssets;
-    
-    event AssetListed(uint256 indexed tokenId, address seller, uint256 price, uint256 amount);
-    event AssetSold(uint256 indexed tokenId, address seller, address buyer, uint256 price, uint256 amount);
-    event AssetSoldBack(uint256 indexed tokenId, address seller, uint256 price, uint256 amount);
-    event ListingCancelled(uint256 indexed tokenId, address seller);
+    // issuer => balance
+    mapping(address => uint256) public proceeds;
 
-    constructor(
-        address _admin, 
-        address _rwaAsset,
-        address _issuerRegistry
-    ) {
-        admin = Admin(_admin);
-        rwaAsset = RWAAsset(_rwaAsset);
-        issuerRegistry = IssuerRegistry(_issuerRegistry);
-    }
+    event AssetListed(address indexed issuer, uint256 indexed tokenId, uint256 price, uint256 amount);
+    event AssetBoughtLocal(address indexed buyer, uint256 indexed tokenId, uint256 amount, uint256 price);
+    event AssetBoughtCrossChain(address indexed buyer, uint256 indexed tokenId, uint256 amount, uint256 price, uint64 destChain);
+    event ProceedsWithdrawn(address indexed issuer, uint256 amount);
 
-    modifier notPaused() {
-        require(!admin.paused(), "Marketplace is paused");
+    modifier onlyIssuer(uint256 tokenId) {
+        require(listings[tokenId].issuer == msg.sender, "Not issuer");
         _;
     }
 
-    function listAsset(uint256 tokenId, uint256 price, uint256 amount) external notPaused {
-        require(rwaAsset.balanceOf(msg.sender,tokenId) >= amount, "Not enough tokens");
-        require(issuerRegistry.isValidIssuer(msg.sender), "Not a valid issuer");
-        require(rwaAsset.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
-        require(amount > 0, "Amount must be > 0");
-        listings[tokenId] = Listing({
-            tokenId: tokenId,
-            seller: msg.sender,
-            price: price,
-            timestamp: block.timestamp,
-            isActive: true
-        });
-        emit AssetListed(tokenId, msg.sender, price, amount);
+    constructor(address _assetToken) {
+        require(_assetToken != address(0), "Invalid asset token");
+        assetToken = AssetToken(_assetToken);
     }
 
-    error AssetAlreadySold();
-    error InvalidBuyer();
-    error RefundFailed();
-
-    function buyAsset(uint256 tokenId, uint256 amount) external payable notPaused nonReentrant {
-        Listing storage listing = listings[tokenId];
-        require(listing.isActive, "Listing not active");
-        require(msg.sender != listing.seller, "Cannot buy own asset");
-        require(msg.sender != address(0), "Invalid buyer address");
+    /**
+     * @notice List asset for sale. Transfers tokens from issuer to marketplace.
+     * @param tokenId Token ID to list
+     * @param amount Amount to list
+     * @param price Price per token (in wei)
+     */
+    function listAsset(uint256 tokenId, uint256 amount, uint256 price) external {
+        require(price > 0, "Price must be > 0");
         require(amount > 0, "Amount must be > 0");
-        require(rwaAsset.balanceOf(listing.seller, tokenId) >= amount, "Seller does not have enough tokens");
+        // Transfer tokens from issuer to marketplace
+        assetToken.safeTransferFrom(msg.sender, address(this), tokenId, amount, "");
+        listings[tokenId] = Listing({issuer: msg.sender, price: price, amount: amount});
+        emit AssetListed(msg.sender, tokenId, price, amount);
+    }
+
+    /**
+     * @notice Buy asset locally (same chain). Pays price, receives tokens.
+     * @param tokenId Token ID to buy
+     * @param amount Amount to buy
+     */
+    function buyAssetLocal(uint256 tokenId, uint256 amount) external payable {
+        Listing storage listing = listings[tokenId];
+        require(listing.price > 0, "Not listed");
+        require(amount > 0 && amount <= listing.amount, "Invalid amount");
         uint256 totalPrice = listing.price * amount;
         require(msg.value >= totalPrice, "Insufficient payment");
-        if (_assetSold[tokenId]) revert AssetAlreadySold();
-        // Mark asset as sold before making transfers
-        // If you want to allow partial sales, remove this line:
-        // listing.isActive = false;
-        // _assetSold[tokenId] = true;
         // Transfer tokens to buyer
-        rwaAsset.safeTransferFrom(listing.seller, msg.sender, tokenId, amount, "");
-        // Transfer payment to seller
-        (bool success, ) = payable(listing.seller).call{value: totalPrice}("");
-        require(success, "Payment to seller failed");
+        assetToken.safeTransferFrom(address(this), msg.sender, tokenId, amount, "");
+        // Update listing
+        listing.amount -= amount;
+        // Store proceeds for issuer
+        proceeds[listing.issuer] += totalPrice;
         // Refund excess
-        uint256 refundAmount = msg.value - totalPrice;
-        if (refundAmount > 0) {
-            (bool refundSuccess, ) = payable(msg.sender).call{value: refundAmount}("");
-            if (!refundSuccess) {
-                _pendingRefunds[tokenId][msg.sender] = refundAmount;
-            }
+        if (msg.value > totalPrice) {
+            payable(msg.sender).transfer(msg.value - totalPrice);
         }
-        // Track buyer's ownership
-        _ownedAssets[msg.sender].push(tokenId);
-        emit AssetSold(tokenId, listing.seller, msg.sender, listing.price, amount);
+        // Remove listing if sold out
+        if (listing.amount == 0) {
+            delete listings[tokenId];
+        }
+        emit AssetBoughtLocal(msg.sender, tokenId, amount, totalPrice);
     }
 
-    function sellAsset(uint256 tokenId, uint256 amount) external notPaused nonReentrant {
-        require(rwaAsset.balanceOf(msg.sender, tokenId) >= amount, "Not enough tokens to sell");
+    /**
+     * @notice Buy asset cross-chain. Pays price, receives tokens on destination chain.
+     * @param tokenId Token ID to buy
+     * @param amount Amount to buy
+     * @param destChain Destination chain selector
+     * @param to Recipient address on destination chain
+     * @param payFeesInNative True to pay CCIP fees in native, false for LINK
+     */
+    function buyAssetCrossChain(
+        uint256 tokenId,
+        uint256 amount,
+        uint64 destChain,
+        address to,
+        bool payFeesInNative
+    ) external payable {
         Listing storage listing = listings[tokenId];
-        require(listing.isActive, "Listing not active");
+        require(listing.price > 0, "Not listed");
+        require(amount > 0 && amount <= listing.amount, "Invalid amount");
         uint256 totalPrice = listing.price * amount;
-        // Transfer tokens from seller to contract (or burn, or hold)
-        rwaAsset.safeTransferFrom(msg.sender, address(this), tokenId, amount, "");
-        // Pay seller
-        (bool success, ) = payable(msg.sender).call{value: totalPrice}("");
-        require(success, "Payment to seller failed");
-        emit AssetSoldBack(tokenId, msg.sender, listing.price, amount);
-    }
-
-    function claimRefund(uint256 tokenId) external nonReentrant {
-        uint256 refundAmount = _pendingRefunds[tokenId][msg.sender];
-        require(refundAmount > 0, "No refund available");
-        _pendingRefunds[tokenId][msg.sender] = 0;
-        (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
-        require(success, "Refund transfer failed");
-    }
-
-    function getAssetsOf(address owner) external view returns (uint256[] memory, uint256[] memory) {
-        uint256[] memory tokenIds = _ownedAssets[owner];
-        uint256[] memory balances = new uint256[](tokenIds.length);
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            balances[i] = rwaAsset.balanceOf(owner, tokenIds[i]);
+        require(msg.value >= totalPrice, "Insufficient payment");
+        // Call crossChainTransferFrom on AssetToken
+        AssetToken.PayFeesIn payFees = payFeesInNative ? AssetToken.PayFeesIn.Native : AssetToken.PayFeesIn.LINK;
+        assetToken.crossChainTransferFrom(address(this), to, tokenId, amount, "", destChain, payFees);
+        // Update listing
+        listing.amount -= amount;
+        proceeds[listing.issuer] += totalPrice;
+        // Refund excess
+        if (msg.value > totalPrice) {
+            payable(msg.sender).transfer(msg.value - totalPrice);
         }
-        return (tokenIds, balances);
+        // Remove listing if sold out
+        if (listing.amount == 0) {
+            delete listings[tokenId];
+        }
+        emit AssetBoughtCrossChain(msg.sender, tokenId, amount, totalPrice, destChain);
     }
 
-    function cancelListing(uint256 tokenId) external {
-        Listing storage listing = listings[tokenId];
-        require(listing.seller == msg.sender, "Not the seller");
-        require(listing.isActive, "Listing not active");
+    /**
+     * @notice Set approval for marketplace to transfer tokens on behalf of issuer.
+     * @param approved True to approve, false to revoke
+     */
+    function setApproval(bool approved) external {
+        assetToken.setApprovalForAll(address(this), approved);
+    }
 
-        listing.isActive = false;
-        emit ListingCancelled(tokenId, msg.sender);
+    /**
+     * @notice Issuer withdraws collected proceeds.
+     */
+    function withdrawProceeds() external {
+        uint256 amount = proceeds[msg.sender];
+        require(amount > 0, "No proceeds");
+        proceeds[msg.sender] = 0;
+        payable(msg.sender).transfer(amount);
+        emit ProceedsWithdrawn(msg.sender, amount);
     }
 }
