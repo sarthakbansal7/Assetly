@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.24;
 
 import {AssetToken} from "./AssetToken.sol";
+import {CrossChainBurnAndMintERC1155} from "./CrossChainBurnAndMintERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 
 /**
  * @title Marketplace for AssetToken (ERC1155)
  * @notice Only supports listing, local buy, cross-chain buy, and approval management.
  */
-contract Marketplace {
+contract Marketplace is ERC1155Receiver {
     struct Listing {
         address issuer;
         uint256 price;
@@ -44,6 +46,7 @@ contract Marketplace {
     function listAsset(uint256 tokenId, uint256 amount, uint256 price) external {
         require(price > 0, "Price must be > 0");
         require(amount > 0, "Amount must be > 0");
+        
         // Transfer tokens from issuer to marketplace
         assetToken.safeTransferFrom(msg.sender, address(this), tokenId, amount, "");
         listings[tokenId] = Listing({issuer: msg.sender, price: price, amount: amount});
@@ -99,7 +102,7 @@ contract Marketplace {
         uint256 totalPrice = listing.price * amount;
         require(msg.value >= totalPrice, "Insufficient payment");
         // Call crossChainTransferFrom on AssetToken
-        AssetToken.PayFeesIn payFees = payFeesInNative ? AssetToken.PayFeesIn.Native : AssetToken.PayFeesIn.LINK;
+        CrossChainBurnAndMintERC1155.PayFeesIn payFees = payFeesInNative ? CrossChainBurnAndMintERC1155.PayFeesIn.Native : CrossChainBurnAndMintERC1155.PayFeesIn.LINK;
         assetToken.crossChainTransferFrom(address(this), to, tokenId, amount, "", destChain, payFees);
         // Update listing
         listing.amount -= amount;
@@ -116,11 +119,35 @@ contract Marketplace {
     }
 
     /**
-     * @notice Set approval for marketplace to transfer tokens on behalf of issuer.
-     * @param approved True to approve, false to revoke
+     * @notice Returns marketplace address for manual approval on AssetToken
+     * @dev Call AssetToken.setApprovalForAll(this_address, true) directly
      */
-    function setApproval(bool approved) external {
-        assetToken.setApprovalForAll(address(this), approved);
+    function getMarketplaceAddress() external view returns (address) {
+        return address(this);
+    }
+
+    /**
+     * @notice Helper function - user must call AssetToken.setApprovalForAll directly
+     * @dev This function just returns instructions, doesn't actually set approval
+     */
+    function setApproval(bool approved) external pure returns (string memory) {
+        if (approved) {
+            return "Call AssetToken.setApprovalForAll(marketplace_address, true) directly";
+        } else {
+            return "Call AssetToken.setApprovalForAll(marketplace_address, false) directly";
+        }
+    }
+
+    /**
+     * @notice Helper function - user must call AssetToken.setApprovalForAll directly  
+     * @dev This function just returns instructions, doesn't actually set approval
+     */
+    function setApprovalForMarketplace(bool approved) external pure returns (string memory) {
+        if (approved) {
+            return "Call AssetToken.setApprovalForAll(marketplace_address, true) directly";
+        } else {
+            return "Call AssetToken.setApprovalForAll(marketplace_address, false) directly";
+        }
     }
 
     /**
@@ -132,5 +159,33 @@ contract Marketplace {
         proceeds[msg.sender] = 0;
         payable(msg.sender).transfer(amount);
         emit ProceedsWithdrawn(msg.sender, amount);
+    }
+
+    /**
+     * @notice Handle the receipt of a single ERC1155 token type.
+     * @dev This function is called at the end of a `safeTransferFrom` after the balance has been updated.
+     */
+    function onERC1155Received(
+        address operator,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes calldata data
+    ) public virtual override returns (bytes4) {
+        return this.onERC1155Received.selector;
+    }
+
+    /**
+     * @notice Handle the receipt of multiple ERC1155 token types.
+     * @dev This function is called at the end of a `safeBatchTransferFrom` after the balances have been updated.
+     */
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) public virtual override returns (bytes4) {
+        return this.onERC1155BatchReceived.selector;
     }
 }
