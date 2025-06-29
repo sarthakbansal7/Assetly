@@ -1,4 +1,4 @@
-[
+const marketplaceABI = [
 	{
 		"inputs": [
 			{
@@ -447,4 +447,6 @@
 		"stateMutability": "nonpayable",
 		"type": "function"
 	}
-]
+];
+
+export default marketplaceABI;

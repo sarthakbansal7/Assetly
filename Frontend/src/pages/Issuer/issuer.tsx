@@ -103,6 +103,7 @@ const Issuer: React.FC = () => {
   const [listTokenId, setListTokenId] = useState('');
   const [listAmount, setListAmount] = useState('');
   const [listPrice, setListPrice] = useState('');
+  const [isListingAsset, setIsListingAsset] = useState(false);
 
   // Success states
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -165,12 +166,7 @@ const Issuer: React.FC = () => {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       
-      // Ensure we're using a valid contract address
-      if (!MARKETPLACE_CONTRACT_ADDRESS || 
-          MARKETPLACE_CONTRACT_ADDRESS === "0x..." || 
-          MARKETPLACE_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
-        throw new Error("Marketplace contract address not configured. Please deploy the contract first.");
-      }
+
       
       const marketplaceContract = new ethers.Contract(
         MARKETPLACE_CONTRACT_ADDRESS,
@@ -216,26 +212,84 @@ const Issuer: React.FC = () => {
 
   const handleListAsset = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsListingAsset(true);
+    
     try {
       // Validate required fields
       if (!listTokenId || !listAmount || !listPrice) {
         toast.error('Please fill all required fields');
         return;
       }
+
+      // Validate wallet connection
+      if (!isConnected || !account) {
+        toast.error('Please connect your wallet first');
+        return;
+      }
+
+      // Get provider and signer
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      // Create contract instance
+      const marketplaceContract = new ethers.Contract(
+        MARKETPLACE_CONTRACT_ADDRESS,
+        marketplaceABI,
+        signer
+      );
+
+      // Convert price to wei (assuming user enters price in ETH/AVAX)
+      const priceInWei = ethers.parseEther(listPrice);
       
-      // TODO: Implement actual listing logic here
-      console.log('Listing asset:', { listTokenId, listAmount, listPrice });
+      console.log('Listing asset:', { 
+        tokenId: listTokenId, 
+        amount: listAmount, 
+        priceInWei: priceInWei.toString() 
+      });
+
+      // Call the listAsset function
+      const tx = await marketplaceContract.listAsset(
+        BigInt(listTokenId),
+        BigInt(listAmount),
+        priceInWei
+      );
+
+      toast.success('Transaction submitted! Waiting for confirmation...');
       
-      // Simulate listing success
-      toast.success('Asset listed successfully!');
-      setShowListDialog(false);
+      // Wait for transaction confirmation
+      const receipt = await tx.wait();
       
-      // Reset form
-      setListTokenId('');
-      setListAmount('');
-      setListPrice('');
-    } catch (error) {
-      toast.error('Failed to list asset');
+      if (receipt.status === 1) {
+        toast.success(`Asset listed successfully! Token ID: ${listTokenId}`);
+        setShowListDialog(false);
+        
+        // Reset form
+        setListTokenId('');
+        setListAmount('');
+        setListPrice('');
+      } else {
+        throw new Error('Transaction failed');
+      }
+
+    } catch (error: any) {
+      console.error('Error listing asset:', error);
+      
+      // Handle specific error types
+      if (error.code === 'ACTION_REJECTED') {
+        toast.error('Transaction rejected by user');
+      } else if (error.message?.includes('insufficient funds')) {
+        toast.error('Insufficient funds for gas fees');
+      } else if (error.message?.includes('Not enough tokens')) {
+        toast.error('You don\'t have enough tokens to list');
+      } else if (error.message?.includes('Price must be > 0')) {
+        toast.error('Price must be greater than 0');
+      } else if (error.message?.includes('Amount must be > 0')) {
+        toast.error('Amount must be greater than 0');
+      } else {
+        toast.error(`Failed to list asset: ${error.message || 'Unknown error'}`);
+      }
+    } finally {
+      setIsListingAsset(false);
     }
   };
 
@@ -752,7 +806,9 @@ const Issuer: React.FC = () => {
                   
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setShowListDialog(false)} className="rounded-md">Cancel</Button>
-                    <Button type="submit" className="bg-green-600 text-white hover:bg-green-700 rounded-md">List Asset</Button>
+                    <Button type="submit" disabled={isListingAsset} className="bg-green-600 text-white hover:bg-green-700 rounded-md">
+                      {isListingAsset ? 'Listing...' : 'List Asset'}
+                    </Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
