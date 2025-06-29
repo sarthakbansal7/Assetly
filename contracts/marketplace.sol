@@ -52,16 +52,19 @@ contract Marketplace is ERC1155Receiver, ChainlinkFeaturedListings {
         address _vrfCoordinator,
         bytes32 _gasLane,
         uint64 _subscriptionId
-    ) VRFConsumerBaseV2(_vrfCoordinator) {
+    ) ChainlinkFeaturedListings(_vrfCoordinator, _gasLane, _subscriptionId) {
         require(_assetToken != address(0), "Invalid asset token");
-        require(_vrfCoordinator != address(0), "Invalid VRF coordinator");
-        
         assetToken = AssetToken(_assetToken);
-        i_vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
-        i_gasLane = _gasLane;
-        i_subscriptionId = _subscriptionId;
         owner = msg.sender;
-        lastFeaturedUpdate = block.timestamp;
+    }
+
+    // Implementation of abstract functions from ChainlinkFeaturedListings
+    function getActiveListings() external view override returns (uint256[] memory) {
+        return activeListings;
+    }
+
+    function getOwner() external view override returns (address) {
+        return owner;
     }
 
     /**
@@ -87,112 +90,6 @@ contract Marketplace is ERC1155Receiver, ChainlinkFeaturedListings {
         }
         
         emit AssetListed(msg.sender, tokenId, price, amount);
-    }
-
-    /**
-     * @notice Request new featured listings using Chainlink VRF
-     * @dev Can be called by anyone, but only once per day
-     */
-    function requestFeaturedListings() external {
-        require(
-            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL,
-            "Too early to update featured listings"
-        );
-        require(!vrfRequestPending, "VRF request already pending");
-        require(activeListings.length >= 3, "Need at least 3 active listings");
-
-        vrfRequestPending = true;
-        s_requestId = i_vrfCoordinator.requestRandomWords(
-            i_gasLane,
-            i_subscriptionId,
-            REQUEST_CONFIRMATIONS,
-            CALLBACK_GAS_LIMIT,
-            NUM_WORDS
-        );
-
-        emit FeaturedListingsRequested(s_requestId, activeListings.length);
-    }
-
-    /**
-     * @notice Chainlink VRF callback function
-     * @param requestId The request ID
-     * @param randomWords Array of random numbers
-     */
-    function fulfillRandomWords(
-        uint256 requestId,
-        uint256[] memory randomWords
-    ) internal override {
-        require(requestId == s_requestId, "Invalid request ID");
-        
-        vrfRequestPending = false;
-        emit RandomWordsReceived(requestId, randomWords);
-        
-        // Clear previous featured listings
-        delete featuredListings;
-        
-        uint256 totalListings = activeListings.length;
-        
-        if (totalListings >= 3) {
-            // Select 3 unique random listings
-            uint256[] memory selectedIndices = new uint256[](3);
-            bool[] memory used = new bool[](totalListings);
-            
-            for (uint256 i = 0; i < 3; i++) {
-                uint256 randomIndex;
-                uint256 attempts = 0;
-                
-                // Find unused index (with safety limit)
-                do {
-                    randomIndex = randomWords[i] % totalListings;
-                    attempts++;
-                } while (used[randomIndex] && attempts < totalListings);
-                
-                // If we couldn't find unused index, use sequential fallback
-                if (used[randomIndex]) {
-                    for (uint256 j = 0; j < totalListings; j++) {
-                        if (!used[j]) {
-                            randomIndex = j;
-                            break;
-                        }
-                    }
-                }
-                
-                used[randomIndex] = true;
-                selectedIndices[i] = randomIndex;
-                featuredListings.push(activeListings[randomIndex]);
-            }
-            
-            lastFeaturedUpdate = block.timestamp;
-            emit FeaturedListingsUpdated(featuredListings, block.timestamp);
-        }
-    }
-
-    /**
-     * @notice Get current featured listings
-     * @return Array of featured token IDs
-     */
-    function getFeaturedListings() external view returns (uint256[] memory) {
-        return featuredListings;
-    }
-
-    /**
-     * @notice Get all active listings
-     * @return Array of token IDs that have active listings
-     */
-    function getActiveListings() external view returns (uint256[] memory) {
-        return activeListings;
-    }
-
-    /**
-     * @notice Check if featured listings can be updated
-     * @return true if enough time has passed and there are enough listings
-     */
-    function canUpdateFeatured() external view returns (bool) {
-        return (
-            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL &&
-            !vrfRequestPending &&
-            activeListings.length >= 3
-        );
     }
 
     /**
