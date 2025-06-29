@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useId } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BackgroundBeamsWithCollision } from '@/components/ui/background-beams-with-collision';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion, AnimatePresence } from "framer-motion";
@@ -224,72 +224,79 @@ const Marketplace: React.FC = () => {
   }) || [];
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div 
-            className="text-2xl font-bold text-marketplace-blue cursor-pointer hover:opacity-80"
-            onClick={() => navigate('/')}
-          >
-            Home
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg">
-              Connect Wallet
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50">
+      {/* Professional Header */}
+      <header className="backdrop-blur-lg bg-white/80 border-b border-slate-200/60 sticky top-0 z-40">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex justify-between items-center">
+            <div 
+              className="flex items-center space-x-3 cursor-pointer group"
+              onClick={() => navigate('/')}
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                  RWA Marketplace
+                </h1>
+                <p className="text-xs text-slate-500">Real World Assets</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="hidden md:flex items-center space-x-6 text-sm">
+                <span className="text-slate-600 hover:text-slate-800 cursor-pointer transition-colors">Explore</span>
+                <span className="text-slate-600 hover:text-slate-800 cursor-pointer transition-colors">About</span>
+                <span className="text-slate-600 hover:text-slate-800 cursor-pointer transition-colors">Help</span>
+              </div>
+              <button className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium">
+                Connect Wallet
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      {/* Hero Section */}
+      <div className="container mx-auto px-6 pt-12 pb-8">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-4">
+            Discover Real World Assets
+          </h2>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+            Invest in tokenized real-world assets with complete transparency and security
+          </p>
+        </div>
+
+        {/* Professional Tabs */}
         <Tabs defaultValue="realEstate" className="w-full">
-          <TabsList className="w-[1200px] mx-auto grid grid-cols-5 gap-4 mb-8 bg-transparent">
-            <TabCard
-              title="Real Estate"
-              subtitle="Premium Properties"
-              bgImage="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&auto=format&fit=crop&q=60"
-              value="realEstate"
-            />
-            <TabCard
-              title="Invoices"
-              subtitle="Corporate Finance"
-              bgImage="https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&auto=format&fit=crop&q=60"
-              value="invoices"
-            />
-            <TabCard
-              title="Commodities"
-              subtitle="Physical Assets"
-              bgImage="https://images.unsplash.com/photo-1610375461246-83df859d849d?w=800&auto=format&fit=crop&q=60"
-              value="commodities"
-            />
-            <TabCard
-              title="Stocks"
-              subtitle="Share Certificates"
-              bgImage="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=60"
-              value="stocks"
-            />
-            <TabCard
-              title="Carbon Credits"
-              subtitle="Environmental Assets"
-              bgImage="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&auto=format&fit=crop&q=60"
-              value="carbonCredits"
-            />
-          </TabsList>
+          <div className="flex justify-center mb-8">
+            <TabsList className="inline-flex bg-white/60 backdrop-blur-sm p-1 rounded-2xl shadow-lg border border-slate-200/50">
+              <ProfessionalTab title="Real Estate" icon="🏘️" value="realEstate" />
+              <ProfessionalTab title="Invoices" icon="📄" value="invoices" />
+              <ProfessionalTab title="Commodities" icon="⚡" value="commodities" />
+              <ProfessionalTab title="Stocks" icon="📈" value="stocks" />
+              <ProfessionalTab title="Carbon Credits" icon="🌱" value="carbonCredits" />
+            </TabsList>
+          </div>
 
           <TabsContent value="realEstate">
-            <ListingsGrid listings={realEstateListings} />
+            <ProfessionalListingsGrid listings={realEstateListings} category="Real Estate" />
           </TabsContent>
           <TabsContent value="invoices">
-            <ListingsGrid listings={invoiceListings} />
+            <ProfessionalListingsGrid listings={invoiceListings} category="Invoices" />
           </TabsContent>
           <TabsContent value="commodities">
-            <ListingsGrid listings={commodityListings} />
+            <ProfessionalListingsGrid listings={commodityListings} category="Commodities" />
           </TabsContent>
           <TabsContent value="stocks">
-            <ListingsGrid listings={stockListings} />
+            <ProfessionalListingsGrid listings={stockListings} category="Stocks" />
           </TabsContent>
           <TabsContent value="carbonCredits">
-            <ListingsGrid listings={carbonCreditListings} />
+            <ProfessionalListingsGrid listings={carbonCreditListings} category="Carbon Credits" />
           </TabsContent>
         </Tabs>
       </div>
@@ -297,189 +304,220 @@ const Marketplace: React.FC = () => {
   );
 };
 
-// ListingsGrid component
-const ListingsGrid: React.FC<{ listings: MarketplaceListing[] }> = ({ listings }) => {
+// Professional Tab Component
+const ProfessionalTab: React.FC<{
+  title: string;
+  icon: string;
+  value: string;
+}> = ({ title, icon, value }) => (
+  <TabsTrigger 
+    value={value}
+    className="px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300 font-medium text-slate-700 data-[state=active]:text-slate-900"
+  >
+    <span className="mr-2 text-lg">{icon}</span>
+    {title}
+  </TabsTrigger>
+);
+
+// Professional Listings Grid
+const ProfessionalListingsGrid: React.FC<{ 
+  listings: MarketplaceListing[];
+  category: string;
+}> = ({ listings, category }) => {
   const [activeListing, setActiveListing] = useState<MarketplaceListing | null>(null);
-  const id = useId();
+
+  if (listings.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-semibold text-slate-800 mb-2">No {category} Available</h3>
+        <p className="text-slate-600">Check back later for new listings in this category.</p>
+      </div>
+    );
+  }
 
   return (
     <>
       <AnimatePresence>
         {activeListing && (
-          <ExpandedDetail 
+          <ProfessionalExpandedDetail 
             listing={activeListing} 
             onClose={() => setActiveListing(null)} 
           />
         )}
       </AnimatePresence>
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="grid grid-cols-7 gap-4 p-4 border-b bg-gray-50 text-sm font-medium text-gray-500">
-          <div className="col-span-2">Assets</div>
-          <div>Price</div>
-          <div>Category</div>
-          <div>Type</div>
-          <div>Earn XP</div>
-          <div>Actions</div>
-        </div>
-
-        <div className="divide-y">
-          {listings.map((listing) => (
-            <motion.div
-              key={listing.asset_id}
-              layoutId={`listing-${listing.asset_id}`}
-              onClick={() => setActiveListing(listing)}
-              className="grid grid-cols-7 gap-4 p-4 items-center hover:bg-gray-50 cursor-pointer"
-            >
-              <div className="col-span-2 flex items-center gap-3">
-                <img 
-                  src={listing.image} 
-                  alt={listing.name}
-                  className="w-12 h-12 rounded object-cover"
-                />
-                <div>
-                  <div className="font-medium">{listing.name}</div>
-                  <div className="text-sm text-gray-500">{listing.description.substring(0, 50)}...</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {listings.map((listing, index) => (
+          <motion.div
+            key={listing.asset_id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: index * 0.1 }}
+            layoutId={`listing-${listing.asset_id}`}
+            onClick={() => setActiveListing(listing)}
+            className="group bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer border border-slate-200/50 hover:border-blue-200/50 overflow-hidden hover:scale-[1.02]"
+          >
+            <div className="relative overflow-hidden">
+              <img 
+                src={listing.image} 
+                alt={listing.name}
+                className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-700"
+              />
+              <div className="absolute top-4 left-4">
+                <span className="px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-slate-700 border border-slate-200/50">
+                  {listing.attributes.find(attr => attr.trait_type === 'Asset Type')?.value}
+                </span>
+              </div>
+              <div className="absolute top-4 right-4">
+                <div className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center border border-slate-200/50">
+                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
                 </div>
               </div>
-              <div className="font-medium">{listing.price} ETH</div>
-              <div>{listing.attributes.find(attr => attr.trait_type === 'Asset Type')?.value}</div>
-              <div>{listing.attributes[1]?.value || 'N/A'}</div>
-              <div className="text-green-600">+50 XP</div>
-              <div>
+            </div>
+            
+            <div className="p-6">
+              <h3 className="font-bold text-slate-900 mb-2 group-hover:text-blue-800 transition-colors line-clamp-1">
+                {listing.name}
+              </h3>
+              <p className="text-slate-600 text-sm mb-4 line-clamp-2 leading-relaxed">
+                {listing.description}
+              </p>
+              
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    {listing.price} ETH
+                  </p>
+                  <p className="text-xs text-slate-500">≈ ${(parseFloat(listing.price) * 2500).toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-green-600">+50 XP</p>
+                  <p className="text-xs text-slate-500">Reward</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span className="text-xs text-slate-600">Available Now</span>
+                </div>
                 <button 
-                  className="px-4 py-1.5 bg-marketplace-blue text-white rounded-lg hover:bg-blue-600"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg text-sm font-medium"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Add purchase logic here
                     alert('Purchase functionality coming soon!');
                   }}
                 >
                   Buy Now
                 </button>
               </div>
-            </motion.div>
-          ))}
-        </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
     </>
   );
 };
 
-// Components for the marketplace UI
-
-// ExpandedDetail Component
-const ExpandedDetail: React.FC<{
+// Professional Expanded Detail Component
+const ProfessionalExpandedDetail: React.FC<{
   listing: MarketplaceListing;
   onClose: () => void;
 }> = ({ listing, onClose }) => (
-  <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/40"
-      onClick={onClose}
-    />
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      className="relative bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="relative bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
     >
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full bg-white shadow-lg hover:bg-gray-100"
+        className="absolute top-6 right-6 z-10 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 border border-slate-200/50"
       >
-        <CloseIcon />
+        <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
       </button>
 
-      <div className="aspect-video w-full">
-        <img
-          src={listing.image}
-          alt={listing.name}
-          className="w-full h-full object-cover rounded-t-2xl"
-        />
-      </div>
-
-      <div className="p-6 space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{listing.name}</h2>
-          <div className="text-3xl font-bold text-marketplace-blue mt-2">
-            {Number(listing.price).toLocaleString()} ETH
+      <div className="flex flex-col lg:flex-row h-full max-h-[90vh] overflow-y-auto">
+        <div className="lg:w-1/2 relative">
+          <img
+            src={listing.image}
+            alt={listing.name}
+            className="w-full h-64 lg:h-full object-cover"
+          />
+          <div className="absolute bottom-6 left-6">
+            <span className="px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full text-sm font-medium text-slate-700 border border-slate-200/50">
+              {listing.attributes.find(attr => attr.trait_type === 'Asset Type')?.value}
+            </span>
           </div>
         </div>
 
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Description</h3>
-          <p className="text-gray-600">{listing.description}</p>
-        </div>
-
-        <div>
-          <h3 className="text-lg font-semibold mb-4">Asset Details</h3>
-          <div className="grid grid-cols-2 gap-4">
-            {listing.attributes?.map((attr) => (
-              <div key={attr.trait_type} className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-gray-600">{attr.trait_type}</div>
-                <div className="font-medium">{attr.value}</div>
+        <div className="lg:w-1/2 p-8 flex flex-col justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">{listing.name}</h2>
+            
+            <div className="mb-6">
+              <div className="flex items-baseline space-x-4 mb-2">
+                <span className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  {listing.price} ETH
+                </span>
+                <span className="text-lg text-slate-500">≈ ${(parseFloat(listing.price) * 2500).toLocaleString()}</span>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="flex items-center space-x-4 text-sm text-slate-600">
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span>Available</span>
+                </div>
+                <span>•</span>
+                <span>+50 XP Reward</span>
+              </div>
+            </div>
 
-        <div className="flex justify-end gap-4 pt-4">
-          <button 
-            onClick={onClose}
-            className="px-6 py-2 border rounded-lg hover:bg-gray-50"
-          >
-            Close
-          </button>
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">Description</h3>
+              <p className="text-slate-600 leading-relaxed">{listing.description}</p>
+            </div>
+
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Asset Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {listing.attributes?.map((attr) => (
+                  <div key={attr.trait_type} className="bg-slate-50 rounded-xl p-4 border border-slate-200/50">
+                    <div className="text-slate-500 text-sm font-medium">{attr.trait_type}</div>
+                    <div className="text-slate-900 font-semibold mt-1">{attr.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex space-x-4">
+            <button 
+              onClick={onClose}
+              className="flex-1 px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
+            >
+              Close
+            </button>
+            <button 
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
+              onClick={() => alert('Purchase functionality coming soon!')}
+            >
+              Purchase Asset
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>
   </motion.div>
-);
-
-// TabCard Component
-const TabCard: React.FC<{
-  title: string;
-  subtitle: string;
-  bgImage: string;
-  value: string;
-}> = ({ title, subtitle, bgImage, value }) => (  <TabsTrigger 
-    value={value}
-    className="relative w-full h-[70px] overflow-hidden rounded-xl border-none p-0 data-[state=active]:bg-transparent shadow-lg transition-all hover:scale-105"
-  >
-    <div 
-      className="absolute inset-0 bg-cover bg-center transition-transform hover:scale-110"
-      style={{ backgroundImage: `url(${bgImage})` }}
-    >
-      <div className="absolute inset-0 bg-black/50" />
-    </div>
-    <div className="relative z-10 p-4 text-left text-white">
-      <h3 className="text-xl font-bold mb-1">{title}</h3>
-      <p className="text-sm text-white/80">{subtitle}</p>
-    </div>
-  </TabsTrigger>
-);
-
-// CloseIcon Component
-const CloseIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-4 w-4"
-  >
-    <path d="M18 6L6 18" />
-    <path d="M6 6l12 12" />
-  </svg>
 );
 
 export default Marketplace;
