@@ -26,6 +26,8 @@ contract Marketplace is ERC1155Receiver {
     event AssetBoughtLocal(address indexed buyer, uint256 indexed tokenId, uint256 amount, uint256 price);
     event AssetBoughtCrossChain(address indexed buyer, uint256 indexed tokenId, uint256 amount, uint256 price, uint64 destChain);
     event ProceedsWithdrawn(address indexed issuer, uint256 amount);
+    event AssetMinted(address indexed minter, uint256 indexed tokenId, uint256 amount, string tokenUri);
+    event AssetBatchMinted(address indexed minter, uint256[] tokenIds, uint256[] amounts, string[] tokenUris);
 
     modifier onlyIssuer(uint256 tokenId) {
         require(listings[tokenId].issuer == msg.sender, "Not issuer");
@@ -143,6 +145,48 @@ contract Marketplace is ERC1155Receiver {
         proceeds[msg.sender] = 0;
         payable(msg.sender).transfer(amount);
         emit ProceedsWithdrawn(msg.sender, amount);
+    }
+
+    /**
+     * @notice Mint new asset tokens to caller's account
+     * @param tokenId Token ID to mint
+     * @param amount Amount to mint
+     * @param tokenUri Metadata URI for the token
+     */
+    function mintAsset(uint256 tokenId, uint256 amount, string calldata tokenUri) external {
+        require(amount > 0, "Amount must be > 0");
+        require(bytes(tokenUri).length > 0, "Token URI required");
+        
+        // Mint tokens directly to the caller
+        assetToken.mint(msg.sender, tokenId, amount, "", tokenUri);
+        
+        emit AssetMinted(msg.sender, tokenId, amount, tokenUri);
+    }
+
+    /**
+     * @notice Mint multiple asset tokens to caller's account in a single transaction
+     * @param tokenIds Array of token IDs to mint
+     * @param amounts Array of amounts to mint for each token ID
+     * @param tokenUris Array of metadata URIs for each token
+     */
+    function mintAssetBatch(
+        uint256[] calldata tokenIds, 
+        uint256[] calldata amounts, 
+        string[] calldata tokenUris
+    ) external {
+        require(tokenIds.length == amounts.length, "Arrays length mismatch");
+        require(tokenIds.length == tokenUris.length, "Arrays length mismatch");
+        require(tokenIds.length > 0, "Empty arrays");
+        
+        for (uint256 i = 0; i < amounts.length; i++) {
+            require(amounts[i] > 0, "Amount must be > 0");
+            require(bytes(tokenUris[i]).length > 0, "Token URI required");
+        }
+        
+        // Mint tokens in batch directly to the caller
+        assetToken.mintBatch(msg.sender, tokenIds, amounts, "", tokenUris);
+        
+        emit AssetBatchMinted(msg.sender, tokenIds, amounts, tokenUris);
     }
 
     /**
