@@ -5,38 +5,111 @@ import {AssetToken} from "./AssetToken.sol";
 import {CrossChainBurnAndMintERC1155} from "./CrossChainBurnAndMintERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 
+// Chainlink VRF interfaces (you'll need to install @chainlink/contracts)
+interface VRFCoordinatorV2Interface {
+    function requestRandomWords(
+        bytes32 keyHash,
+        uint64 subId,
+        uint16 minimumRequestConfirmations,
+        uint32 callbackGasLimit,
+        uint32 numWords
+    ) external returns (uint256 requestId);
+}
+
+abstract contract VRFConsumerBaseV2 {
+    error OnlyCoordinatorCanFulfill(address have, address want);
+    address private immutable vrfCoordinator;
+
+    constructor(address _vrfCoordinator) {
+        vrfCoordinator = _vrfCoordinator;
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal virtual;
+
+    function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
+        if (msg.sender != vrfCoordinator) {
+            revert OnlyCoordinatorCanFulfill(msg.sender, vrfCoordinator);
+        }
+        fulfillRandomWords(requestId, randomWords);
+    }
+}
+
 /**
- * @title Marketplace for AssetToken (ERC1155)
- * @notice Only supports listing, local buy, cross-chain buy, and approval management.
+ * @title Marketplace for AssetToken (ERC1155) with Chainlink VRF
+ * @notice Supports listing, buying, and daily random featured selection using Chainlink VRF
  */
-contract Marketplace is ERC1155Receiver {
+contract Marketplace is ERC1155Receiver, VRFConsumerBaseV2 {
     struct Listing {
         address issuer;
         uint256 price;
         uint256 amount;
     }
 
+    // VRF Configuration
+    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+    bytes32 private immutable i_gasLane;
+    uint64 private immutable i_subscriptionId;
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+    uint32 private constant CALLBACK_GAS_LIMIT = 100000;
+    uint32 private constant NUM_WORDS = 3; // We want 3 random numbers
+
     AssetToken public immutable assetToken;
+    address public owner;
+    
     // tokenId => Listing
     mapping(uint256 => Listing) public listings;
     // issuer => balance
     mapping(address => uint256) public proceeds;
+    
+    // Active token IDs that have listings
+    uint256[] public activeListings;
+    mapping(uint256 => uint256) public tokenIdToActiveIndex; // tokenId => index in activeListings
+    
+    // Featured listings (selected daily via VRF)
+    uint256[] public featuredListings; // Array of 3 featured token IDs
+    uint256 public lastFeaturedUpdate; // Timestamp of last update
+    uint256 public constant FEATURED_UPDATE_INTERVAL = 1 days;
+    
+    // VRF state
+    uint256 private s_requestId;
+    bool public vrfRequestPending;
 
+    // Events
     event AssetListed(address indexed issuer, uint256 indexed tokenId, uint256 price, uint256 amount);
     event AssetBoughtLocal(address indexed buyer, uint256 indexed tokenId, uint256 amount, uint256 price);
     event AssetBoughtCrossChain(address indexed buyer, uint256 indexed tokenId, uint256 amount, uint256 price, uint64 destChain);
     event ProceedsWithdrawn(address indexed issuer, uint256 amount);
     event AssetMinted(address indexed minter, uint256 indexed tokenId, uint256 amount, string tokenUri);
     event AssetBatchMinted(address indexed minter, uint256[] tokenIds, uint256[] amounts, string[] tokenUris);
+    event FeaturedListingsRequested(uint256 indexed requestId, uint256 totalListings);
+    event FeaturedListingsUpdated(uint256[] featuredTokenIds, uint256 timestamp);
+    event RandomWordsReceived(uint256 indexed requestId, uint256[] randomWords);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
 
     modifier onlyIssuer(uint256 tokenId) {
         require(listings[tokenId].issuer == msg.sender, "Not issuer");
         _;
     }
 
-    constructor(address _assetToken) {
+    constructor(
+        address _assetToken,
+        address _vrfCoordinator,
+        bytes32 _gasLane,
+        uint64 _subscriptionId
+    ) VRFConsumerBaseV2(_vrfCoordinator) {
         require(_assetToken != address(0), "Invalid asset token");
+        require(_vrfCoordinator != address(0), "Invalid VRF coordinator");
+        
         assetToken = AssetToken(_assetToken);
+        i_vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
+        i_gasLane = _gasLane;
+        i_subscriptionId = _subscriptionId;
+        owner = msg.sender;
+        lastFeaturedUpdate = block.timestamp;
     }
 
     /**
@@ -49,10 +122,125 @@ contract Marketplace is ERC1155Receiver {
         require(price > 0, "Price must be > 0");
         require(amount > 0, "Amount must be > 0");
         
+        bool isNewListing = listings[tokenId].price == 0;
+        
         // Transfer tokens from issuer to marketplace
         assetToken.safeTransferFrom(msg.sender, address(this), tokenId, amount, "");
         listings[tokenId] = Listing({issuer: msg.sender, price: price, amount: amount});
+        
+        // Add to active listings if it's a new listing
+        if (isNewListing) {
+            tokenIdToActiveIndex[tokenId] = activeListings.length;
+            activeListings.push(tokenId);
+        }
+        
         emit AssetListed(msg.sender, tokenId, price, amount);
+    }
+
+    /**
+     * @notice Request new featured listings using Chainlink VRF
+     * @dev Can be called by anyone, but only once per day
+     */
+    function requestFeaturedListings() external {
+        require(
+            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL,
+            "Too early to update featured listings"
+        );
+        require(!vrfRequestPending, "VRF request already pending");
+        require(activeListings.length >= 3, "Need at least 3 active listings");
+
+        vrfRequestPending = true;
+        s_requestId = i_vrfCoordinator.requestRandomWords(
+            i_gasLane,
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            CALLBACK_GAS_LIMIT,
+            NUM_WORDS
+        );
+
+        emit FeaturedListingsRequested(s_requestId, activeListings.length);
+    }
+
+    /**
+     * @notice Chainlink VRF callback function
+     * @param requestId The request ID
+     * @param randomWords Array of random numbers
+     */
+    function fulfillRandomWords(
+        uint256 requestId,
+        uint256[] memory randomWords
+    ) internal override {
+        require(requestId == s_requestId, "Invalid request ID");
+        
+        vrfRequestPending = false;
+        emit RandomWordsReceived(requestId, randomWords);
+        
+        // Clear previous featured listings
+        delete featuredListings;
+        
+        uint256 totalListings = activeListings.length;
+        
+        if (totalListings >= 3) {
+            // Select 3 unique random listings
+            uint256[] memory selectedIndices = new uint256[](3);
+            bool[] memory used = new bool[](totalListings);
+            
+            for (uint256 i = 0; i < 3; i++) {
+                uint256 randomIndex;
+                uint256 attempts = 0;
+                
+                // Find unused index (with safety limit)
+                do {
+                    randomIndex = randomWords[i] % totalListings;
+                    attempts++;
+                } while (used[randomIndex] && attempts < totalListings);
+                
+                // If we couldn't find unused index, use sequential fallback
+                if (used[randomIndex]) {
+                    for (uint256 j = 0; j < totalListings; j++) {
+                        if (!used[j]) {
+                            randomIndex = j;
+                            break;
+                        }
+                    }
+                }
+                
+                used[randomIndex] = true;
+                selectedIndices[i] = randomIndex;
+                featuredListings.push(activeListings[randomIndex]);
+            }
+            
+            lastFeaturedUpdate = block.timestamp;
+            emit FeaturedListingsUpdated(featuredListings, block.timestamp);
+        }
+    }
+
+    /**
+     * @notice Get current featured listings
+     * @return Array of featured token IDs
+     */
+    function getFeaturedListings() external view returns (uint256[] memory) {
+        return featuredListings;
+    }
+
+    /**
+     * @notice Get all active listings
+     * @return Array of token IDs that have active listings
+     */
+    function getActiveListings() external view returns (uint256[] memory) {
+        return activeListings;
+    }
+
+    /**
+     * @notice Check if featured listings can be updated
+     * @return true if enough time has passed and there are enough listings
+     */
+    function canUpdateFeatured() external view returns (bool) {
+        return (
+            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL &&
+            !vrfRequestPending &&
+            activeListings.length >= 3
+        );
     }
 
     /**
@@ -66,20 +254,25 @@ contract Marketplace is ERC1155Receiver {
         require(amount > 0 && amount <= listing.amount, "Invalid amount");
         uint256 totalPrice = listing.price * amount;
         require(msg.value >= totalPrice, "Insufficient payment");
+        
         // Transfer tokens to buyer
         assetToken.safeTransferFrom(address(this), msg.sender, tokenId, amount, "");
+        
         // Update listing
         listing.amount -= amount;
-        // Store proceeds for issuer
         proceeds[listing.issuer] += totalPrice;
+        
         // Refund excess
         if (msg.value > totalPrice) {
             payable(msg.sender).transfer(msg.value - totalPrice);
         }
-        // Remove listing if sold out
+        
+        // Remove from active listings if sold out
         if (listing.amount == 0) {
+            _removeFromActiveListings(tokenId);
             delete listings[tokenId];
         }
+        
         emit AssetBoughtLocal(msg.sender, tokenId, amount, totalPrice);
     }
 
@@ -103,21 +296,49 @@ contract Marketplace is ERC1155Receiver {
         require(amount > 0 && amount <= listing.amount, "Invalid amount");
         uint256 totalPrice = listing.price * amount;
         require(msg.value >= totalPrice, "Insufficient payment");
+        
         // Call crossChainTransferFrom on AssetToken
-        CrossChainBurnAndMintERC1155.PayFeesIn payFees = payFeesInNative ? CrossChainBurnAndMintERC1155.PayFeesIn.Native : CrossChainBurnAndMintERC1155.PayFeesIn.LINK;
+        CrossChainBurnAndMintERC1155.PayFeesIn payFees = payFeesInNative ? 
+            CrossChainBurnAndMintERC1155.PayFeesIn.Native : 
+            CrossChainBurnAndMintERC1155.PayFeesIn.LINK;
         assetToken.crossChainTransferFrom(address(this), to, tokenId, amount, "", destChain, payFees);
+        
         // Update listing
         listing.amount -= amount;
         proceeds[listing.issuer] += totalPrice;
+        
         // Refund excess
         if (msg.value > totalPrice) {
             payable(msg.sender).transfer(msg.value - totalPrice);
         }
-        // Remove listing if sold out
+        
+        // Remove from active listings if sold out
         if (listing.amount == 0) {
+            _removeFromActiveListings(tokenId);
             delete listings[tokenId];
         }
+        
         emit AssetBoughtCrossChain(msg.sender, tokenId, amount, totalPrice, destChain);
+    }
+
+    /**
+     * @notice Internal function to remove token from active listings array
+     * @param tokenId Token ID to remove
+     */
+    function _removeFromActiveListings(uint256 tokenId) internal {
+        uint256 index = tokenIdToActiveIndex[tokenId];
+        uint256 lastIndex = activeListings.length - 1;
+        
+        if (index != lastIndex) {
+            // Move last element to the position of element to delete
+            uint256 lastTokenId = activeListings[lastIndex];
+            activeListings[index] = lastTokenId;
+            tokenIdToActiveIndex[lastTokenId] = index;
+        }
+        
+        // Remove last element
+        activeListings.pop();
+        delete tokenIdToActiveIndex[tokenId];
     }
 
     /**
@@ -215,5 +436,69 @@ contract Marketplace is ERC1155Receiver {
         bytes calldata /*data*/
     ) public virtual override returns (bytes4) {
         return this.onERC1155BatchReceived.selector;
+    }
+
+    /**
+     * @notice Emergency function to manually set featured listings (owner only)
+     * @param tokenIds Array of 3 token IDs to feature
+     */
+    function emergencySetFeaturedListings(uint256[] calldata tokenIds) external onlyOwner {
+        require(tokenIds.length == 3, "Must provide exactly 3 token IDs");
+        
+        // Verify all token IDs have active listings
+        for (uint256 i = 0; i < 3; i++) {
+            require(listings[tokenIds[i]].price > 0, "Token not listed");
+        }
+        
+        delete featuredListings;
+        for (uint256 i = 0; i < 3; i++) {
+            featuredListings.push(tokenIds[i]);
+        }
+        
+        lastFeaturedUpdate = block.timestamp;
+        emit FeaturedListingsUpdated(featuredListings, block.timestamp);
+    }
+
+    /**
+     * @notice Transfer ownership to new address (owner only)
+     * @param newOwner New owner address
+     */
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Invalid new owner");
+        owner = newOwner;
+    }
+
+    /**
+     * @notice Get VRF configuration details
+     * @return coordinator VRF coordinator address
+     * @return gasLane Gas lane key hash
+     * @return subscriptionId Subscription ID
+     */
+    function getVRFConfig() external view returns (
+        address coordinator,
+        bytes32 gasLane,
+        uint64 subscriptionId
+    ) {
+        return (address(i_vrfCoordinator), i_gasLane, i_subscriptionId);
+    }
+
+    /**
+     * @notice Get featured listings info
+     * @return tokenIds Current featured token IDs
+     * @return lastUpdate Timestamp of last update
+     * @return canUpdate Whether update is available
+     */
+    function getFeaturedInfo() external view returns (
+        uint256[] memory tokenIds,
+        uint256 lastUpdate,
+        bool canUpdate
+    ) {
+        return (
+            featuredListings,
+            lastFeaturedUpdate,
+            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL &&
+            !vrfRequestPending &&
+            activeListings.length >= 3
+        );
     }
 }
