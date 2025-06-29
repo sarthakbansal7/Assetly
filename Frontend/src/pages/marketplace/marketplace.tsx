@@ -224,35 +224,30 @@ const Marketplace: React.FC = () => {
   }) || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-slate-50/30 to-gray-100">
       {/* Professional Header */}
-      <header className="backdrop-blur-lg bg-white/80 border-b border-slate-200/60 sticky top-0 z-40">
+      <header className="backdrop-blur-lg bg-white/90 border-b border-gray-200/60 sticky top-0 z-40">
         <div className="container mx-auto px-6 py-4">
           <div className="flex justify-between items-center">
             <div 
               className="flex items-center space-x-3 cursor-pointer group"
               onClick={() => navigate('/')}
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
+              <div className="w-10 h-10 bg-gradient-to-br from-gray-800 to-black rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
               </div>
-              <div>
-                <h1 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                  RWA Marketplace
-                </h1>
-                <p className="text-xs text-slate-500">Real World Assets</p>
-              </div>
+              
             </div>
             
             <div className="flex items-center space-x-4">
               <div className="hidden md:flex items-center space-x-6 text-sm">
-                <span className="text-slate-600 hover:text-slate-800 cursor-pointer transition-colors">Explore</span>
-                <span className="text-slate-600 hover:text-slate-800 cursor-pointer transition-colors">About</span>
-                <span className="text-slate-600 hover:text-slate-800 cursor-pointer transition-colors">Help</span>
+                <span className="text-gray-600 hover:text-gray-900 cursor-pointer transition-colors">Explore</span>
+                <span className="text-gray-600 hover:text-gray-900 cursor-pointer transition-colors">About</span>
+                <span className="text-gray-600 hover:text-gray-900 cursor-pointer transition-colors">Help</span>
               </div>
-              <button className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium">
+              <button className="px-6 py-2.5 bg-gradient-to-r from-gray-800 to-black text-white rounded-xl hover:from-gray-900 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl font-medium">
                 Connect Wallet
               </button>
             </div>
@@ -260,21 +255,36 @@ const Marketplace: React.FC = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <div className="container mx-auto px-6 pt-12 pb-8">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-4">
-            Discover Real World Assets
-          </h2>
-          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
-            Invest in tokenized real-world assets with complete transparency and security
-          </p>
+      {/* Featured Properties Carousel */}
+      <div className="container mx-auto px-6 pt-8 pb-12">
+        <FeaturedPropertiesCarousel listings={listings.slice(0, 3)} />
+        
+        {/* See All Listings Section */}
+        <div className="mt-16">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">See All Listings</h2>
+              <p className="text-gray-600">Explore our complete collection of tokenized real-world assets</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+              </button>
+              <button className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Professional Tabs */}
         <Tabs defaultValue="realEstate" className="w-full">
           <div className="flex justify-center mb-8">
-            <TabsList className="inline-flex bg-white/60 backdrop-blur-sm p-1 rounded-2xl shadow-lg border border-slate-200/50">
+            <TabsList className="inline-flex bg-white/80 backdrop-blur-sm p-1 rounded-2xl shadow-lg border border-gray-200/50">
               <ProfessionalTab title="Real Estate" icon="🏘️" value="realEstate" />
               <ProfessionalTab title="Invoices" icon="📄" value="invoices" />
               <ProfessionalTab title="Commodities" icon="⚡" value="commodities" />
@@ -304,6 +314,139 @@ const Marketplace: React.FC = () => {
   );
 };
 
+// Featured Properties Carousel Component
+const FeaturedPropertiesCarousel: React.FC<{ listings: MarketplaceListing[] }> = ({ listings }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % listings.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [listings.length]);
+
+  const nextSlide = () => {
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % listings.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentIndex((prevIndex) => (prevIndex - 1 + listings.length) % listings.length);
+  };
+
+  if (listings.length === 0) return null;
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-black shadow-2xl">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(75,85,99,0.2),transparent_50%)]"></div>
+      
+      <div className="relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentIndex}
+            initial={{ opacity: 0, x: 300 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -300 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="flex flex-col lg:flex-row"
+          >
+            {/* Image Section */}
+            <div className="lg:w-1/2 relative">
+              <img
+                src={listings[currentIndex].image}
+                alt={listings[currentIndex].name}
+                className="w-full h-64 lg:h-96 object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+              
+              {/* Featured Badge */}
+              <div className="absolute top-6 left-6">
+                <span className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full text-sm font-bold shadow-lg">
+                  ⭐ FEATURED
+                </span>
+              </div>
+            </div>
+
+            {/* Content Section */}
+            <div className="lg:w-1/2 p-8 lg:p-12 text-white flex flex-col justify-center">
+              <div className="mb-4">
+                <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
+                  {listings[currentIndex].attributes.find(attr => attr.trait_type === 'Asset Type')?.value}
+                </span>
+              </div>
+              
+              <h3 className="text-3xl lg:text-4xl font-bold mb-4 leading-tight">
+                {listings[currentIndex].name}
+              </h3>
+              
+              <p className="text-lg text-gray-100 mb-6 leading-relaxed">
+                {listings[currentIndex].description}
+              </p>
+              
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <div className="text-3xl font-bold text-white mb-1">
+                    {listings[currentIndex].price} ETH
+                  </div>
+                  <div className="text-gray-200 text-sm">
+                    ≈ ${(parseFloat(listings[currentIndex].price) * 2500).toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-green-400 font-bold">ROI: +12.5%</div>
+                  <div className="text-gray-200 text-sm">Expected Annual</div>
+                </div>
+              </div>
+
+              <div className="flex space-x-4">
+                <button className="flex-1 px-6 py-3 bg-white text-gray-900 rounded-xl hover:bg-gray-50 transition-all duration-300 font-semibold shadow-lg">
+                  View Details
+                </button>
+                <button className="flex-1 px-6 py-3 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-xl hover:from-gray-800 hover:to-gray-900 transition-all duration-300 font-semibold shadow-lg">
+                  Invest Now
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Navigation Buttons */}
+        <button
+          onClick={prevSlide}
+          className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        
+        <button
+          onClick={nextSlide}
+          className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-300"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
+        {/* Indicators */}
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-2">
+          {listings.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                index === currentIndex 
+                  ? 'bg-white shadow-lg' 
+                  : 'bg-white/40 hover:bg-white/60'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Professional Tab Component
 const ProfessionalTab: React.FC<{
   title: string;
@@ -312,7 +455,7 @@ const ProfessionalTab: React.FC<{
 }> = ({ title, icon, value }) => (
   <TabsTrigger 
     value={value}
-    className="px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300 font-medium text-slate-700 data-[state=active]:text-slate-900"
+    className="px-6 py-3 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md transition-all duration-300 font-medium text-gray-700 data-[state=active]:text-gray-900"
   >
     <span className="mr-2 text-lg">{icon}</span>
     {title}
@@ -329,13 +472,13 @@ const ProfessionalListingsGrid: React.FC<{
   if (listings.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-slate-800 mb-2">No {category} Available</h3>
-        <p className="text-slate-600">Check back later for new listings in this category.</p>
+        <h3 className="text-xl font-semibold text-gray-800 mb-2">No {category} Available</h3>
+        <p className="text-gray-600">Check back later for new listings in this category.</p>
       </div>
     );
   }
@@ -360,7 +503,7 @@ const ProfessionalListingsGrid: React.FC<{
             transition={{ duration: 0.4, delay: index * 0.1 }}
             layoutId={`listing-${listing.asset_id}`}
             onClick={() => setActiveListing(listing)}
-            className="group bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer border border-slate-200/50 hover:border-blue-200/50 overflow-hidden hover:scale-[1.02]"
+            className="group bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer border border-gray-200/50 hover:border-gray-300/50 overflow-hidden hover:scale-[1.02]"
           >
             <div className="relative overflow-hidden">
               <img 
@@ -369,13 +512,13 @@ const ProfessionalListingsGrid: React.FC<{
                 className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-700"
               />
               <div className="absolute top-4 left-4">
-                <span className="px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-slate-700 border border-slate-200/50">
+                <span className="px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-gray-700 border border-gray-200/50">
                   {listing.attributes.find(attr => attr.trait_type === 'Asset Type')?.value}
                 </span>
               </div>
               <div className="absolute top-4 right-4">
-                <div className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center border border-slate-200/50">
-                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center border border-gray-200/50">
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </div>
@@ -383,33 +526,33 @@ const ProfessionalListingsGrid: React.FC<{
             </div>
             
             <div className="p-6">
-              <h3 className="font-bold text-slate-900 mb-2 group-hover:text-blue-800 transition-colors line-clamp-1">
+              <h3 className="font-bold text-gray-900 mb-2 group-hover:text-gray-700 transition-colors line-clamp-1">
                 {listing.name}
               </h3>
-              <p className="text-slate-600 text-sm mb-4 line-clamp-2 leading-relaxed">
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
                 {listing.description}
               </p>
               
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  <p className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-black bg-clip-text text-transparent">
                     {listing.price} ETH
                   </p>
-                  <p className="text-xs text-slate-500">≈ ${(parseFloat(listing.price) * 2500).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">≈ ${(parseFloat(listing.price) * 2500).toLocaleString()}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-green-600">+50 XP</p>
-                  <p className="text-xs text-slate-500">Reward</p>
+                  <p className="text-xs text-gray-500">Reward</p>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  <span className="text-xs text-slate-600">Available Now</span>
+                  <span className="text-xs text-gray-600">Available Now</span>
                 </div>
                 <button 
-                  className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg text-sm font-medium"
+                  className="px-4 py-2 bg-gradient-to-r from-gray-800 to-black text-white rounded-xl hover:from-gray-900 hover:to-gray-800 transition-all duration-300 shadow-md hover:shadow-lg text-sm font-medium"
                   onClick={(e) => {
                     e.stopPropagation();
                     alert('Purchase functionality coming soon!');
@@ -440,9 +583,9 @@ const ProfessionalExpandedDetail: React.FC<{
     >
       <button
         onClick={onClose}
-        className="absolute top-6 right-6 z-10 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 border border-slate-200/50"
+        className="absolute top-6 right-6 z-10 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200/50"
       >
-        <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
@@ -455,7 +598,7 @@ const ProfessionalExpandedDetail: React.FC<{
             className="w-full h-64 lg:h-full object-cover"
           />
           <div className="absolute bottom-6 left-6">
-            <span className="px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full text-sm font-medium text-slate-700 border border-slate-200/50">
+            <span className="px-4 py-2 bg-white/90 backdrop-blur-sm rounded-full text-sm font-medium text-gray-700 border border-gray-200/50">
               {listing.attributes.find(attr => attr.trait_type === 'Asset Type')?.value}
             </span>
           </div>
@@ -463,16 +606,16 @@ const ProfessionalExpandedDetail: React.FC<{
 
         <div className="lg:w-1/2 p-8 flex flex-col justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">{listing.name}</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">{listing.name}</h2>
             
             <div className="mb-6">
               <div className="flex items-baseline space-x-4 mb-2">
-                <span className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                <span className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-black bg-clip-text text-transparent">
                   {listing.price} ETH
                 </span>
-                <span className="text-lg text-slate-500">≈ ${(parseFloat(listing.price) * 2500).toLocaleString()}</span>
+                <span className="text-lg text-gray-500">≈ ${(parseFloat(listing.price) * 2500).toLocaleString()}</span>
               </div>
-              <div className="flex items-center space-x-4 text-sm text-slate-600">
+              <div className="flex items-center space-x-4 text-sm text-gray-600">
                 <div className="flex items-center space-x-1">
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                   <span>Available</span>
@@ -483,17 +626,17 @@ const ProfessionalExpandedDetail: React.FC<{
             </div>
 
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-slate-900 mb-3">Description</h3>
-              <p className="text-slate-600 leading-relaxed">{listing.description}</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
+              <p className="text-gray-600 leading-relaxed">{listing.description}</p>
             </div>
 
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Asset Details</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Asset Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {listing.attributes?.map((attr) => (
-                  <div key={attr.trait_type} className="bg-slate-50 rounded-xl p-4 border border-slate-200/50">
-                    <div className="text-slate-500 text-sm font-medium">{attr.trait_type}</div>
-                    <div className="text-slate-900 font-semibold mt-1">{attr.value}</div>
+                  <div key={attr.trait_type} className="bg-gray-50 rounded-xl p-4 border border-gray-200/50">
+                    <div className="text-gray-500 text-sm font-medium">{attr.trait_type}</div>
+                    <div className="text-gray-900 font-semibold mt-1">{attr.value}</div>
                   </div>
                 ))}
               </div>
@@ -503,12 +646,12 @@ const ProfessionalExpandedDetail: React.FC<{
           <div className="flex space-x-4">
             <button 
               onClick={onClose}
-              className="flex-1 px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
             >
               Close
             </button>
             <button 
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-gray-800 to-black text-white rounded-xl hover:from-gray-900 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
               onClick={() => alert('Purchase functionality coming soon!')}
             >
               Purchase Asset
