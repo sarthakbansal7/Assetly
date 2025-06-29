@@ -47,6 +47,16 @@ contract Marketplace is ERC1155Receiver, ChainlinkFeaturedListings {
         _;
     }
 
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+
+    modifier onlyIssuer(uint256 tokenId) {
+        require(listings[tokenId].issuer == msg.sender, "Not issuer");
+        _;
+    }
+
     constructor(
         address _assetToken,
         address _vrfCoordinator,
@@ -288,171 +298,11 @@ contract Marketplace is ERC1155Receiver, ChainlinkFeaturedListings {
     }
 
     /**
-     * @notice Emergency function to manually set featured listings (owner only)
-     * @param tokenIds Array of 3 token IDs to feature
-     */
-    function emergencySetFeaturedListings(uint256[] calldata tokenIds) external onlyOwner {
-        require(tokenIds.length == 3, "Must provide exactly 3 token IDs");
-        
-        // Verify all token IDs have active listings
-        for (uint256 i = 0; i < 3; i++) {
-            require(listings[tokenIds[i]].price > 0, "Token not listed");
-        }
-        
-        delete featuredListings;
-        for (uint256 i = 0; i < 3; i++) {
-            featuredListings.push(tokenIds[i]);
-        }
-        
-        lastFeaturedUpdate = block.timestamp;
-        emit FeaturedListingsUpdated(featuredListings, block.timestamp);
-    }
-
-    /**
-     * @notice Manual trigger for featured listings update (emergency use)
-     * @dev Owner can manually trigger VRF request regardless of time constraints
-     */
-    function emergencyRequestFeaturedListings() external onlyOwner {
-        require(!vrfRequestPending, "VRF request already pending");
-        require(activeListings.length >= 3, "Need at least 3 active listings");
-
-        vrfRequestPending = true;
-        s_requestId = i_vrfCoordinator.requestRandomWords(
-            i_gasLane,
-            i_subscriptionId,
-            REQUEST_CONFIRMATIONS,
-            CALLBACK_GAS_LIMIT,
-            NUM_WORDS
-        );
-
-        emit FeaturedListingsRequested(s_requestId, activeListings.length);
-    }
-
-    /**
      * @notice Transfer ownership to new address (owner only)
      * @param newOwner New owner address
      */
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "Invalid new owner");
         owner = newOwner;
-    }
-
-    /**
-     * @notice Get VRF configuration details
-     * @return coordinator VRF coordinator address
-     * @return gasLane Gas lane key hash
-     * @return subscriptionId Subscription ID
-     */
-    function getVRFConfig() external view returns (
-        address coordinator,
-        bytes32 gasLane,
-        uint64 subscriptionId
-    ) {
-        return (address(i_vrfCoordinator), i_gasLane, i_subscriptionId);
-    }
-
-    /**
-     * @notice Get featured listings info
-     * @return tokenIds Current featured token IDs
-     * @return lastUpdate Timestamp of last update
-     * @return canUpdate Whether update is available
-     */
-    function getFeaturedInfo() external view returns (
-        uint256[] memory tokenIds,
-        uint256 lastUpdate,
-        bool canUpdate
-    ) {
-        return (
-            featuredListings,
-            lastFeaturedUpdate,
-            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL &&
-            !vrfRequestPending &&
-            activeListings.length >= 3
-        );
-    }
-
-    /**
-     * @notice Chainlink Automation - Check if upkeep is needed
-     * @dev This function is called by Chainlink Automation nodes to check if performUpkeep should be called
-     * @param checkData Encoded data (not used in this implementation)
-     * @return upkeepNeeded True if upkeep should be performed
-     * @return performData Data to pass to performUpkeep (not used)
-     */
-    function checkUpkeep(
-        bytes calldata /* checkData */
-    ) external view override returns (bool upkeepNeeded, bytes memory /* performData */) {
-        // Upkeep is needed if:
-        // 1. 24 hours have passed since last update
-        // 2. No VRF request is currently pending
-        // 3. There are at least 3 active listings
-        // 4. Contract has enough balance for VRF request (optional check)
-        upkeepNeeded = (
-            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL &&
-            !vrfRequestPending &&
-            activeListings.length >= 3
-        );
-        
-        // Return empty bytes for performData as we don't need to pass any data
-        return (upkeepNeeded, "");
-    }
-
-    /**
-     * @notice Chainlink Automation - Perform the upkeep
-     * @dev This function is called by Chainlink Automation when checkUpkeep returns true
-     * @param performData Data from checkUpkeep (not used)
-     */
-    function performUpkeep(bytes calldata /* performData */) external override {
-        // Re-validate conditions (important for security)
-        require(
-            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL,
-            "Too early for upkeep"
-        );
-        require(!vrfRequestPending, "VRF request already pending");
-        require(activeListings.length >= 3, "Not enough active listings");
-
-        // Request new featured listings via VRF
-        vrfRequestPending = true;
-        s_requestId = i_vrfCoordinator.requestRandomWords(
-            i_gasLane,
-            i_subscriptionId,
-            REQUEST_CONFIRMATIONS,
-            CALLBACK_GAS_LIMIT,
-            NUM_WORDS
-        );
-
-        emit FeaturedListingsRequested(s_requestId, activeListings.length);
-    }
-
-    /**
-     * @notice Get automation status information
-     * @return needsUpkeep Whether upkeep is currently needed
-     * @return timeSinceLastUpdate Seconds since last featured update
-     * @return timeUntilNextUpdate Seconds until next update is allowed (0 if ready)
-     * @return activeListingsCount Number of active listings
-     */
-    function getAutomationStatus() external view returns (
-        bool needsUpkeep,
-        uint256 timeSinceLastUpdate,
-        uint256 timeUntilNextUpdate,
-        uint256 activeListingsCount
-    ) {
-        uint256 currentTime = block.timestamp;
-        timeSinceLastUpdate = currentTime - lastFeaturedUpdate;
-        
-        if (currentTime >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL) {
-            timeUntilNextUpdate = 0;
-        } else {
-            timeUntilNextUpdate = (lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL) - currentTime;
-        }
-        
-        needsUpkeep = (
-            timeUntilNextUpdate == 0 &&
-            !vrfRequestPending &&
-            activeListings.length >= 3
-        );
-        
-        activeListingsCount = activeListings.length;
-        
-        return (needsUpkeep, timeSinceLastUpdate, timeUntilNextUpdate, activeListingsCount);
     }
 }
