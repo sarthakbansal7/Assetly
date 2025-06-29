@@ -130,24 +130,8 @@ contract Marketplace is ERC1155Receiver {
      * @notice Helper function - user must call AssetToken.setApprovalForAll directly
      * @dev This function just returns instructions, doesn't actually set approval
      */
-    function setApproval(bool approved) external pure returns (string memory) {
-        if (approved) {
-            return "Call AssetToken.setApprovalForAll(marketplace_address, true) directly";
-        } else {
-            return "Call AssetToken.setApprovalForAll(marketplace_address, false) directly";
-        }
-    }
-
-    /**
-     * @notice Helper function - user must call AssetToken.setApprovalForAll directly  
-     * @dev This function just returns instructions, doesn't actually set approval
-     */
-    function setApprovalForMarketplace(bool approved) external pure returns (string memory) {
-        if (approved) {
-            return "Call AssetToken.setApprovalForAll(marketplace_address, true) directly";
-        } else {
-            return "Call AssetToken.setApprovalForAll(marketplace_address, false) directly";
-        }
+    function setApproval(bool approved) external {
+        assetToken.setApprovalForAll(address(assetToken), approved);
     }
 
     /**
@@ -166,11 +150,11 @@ contract Marketplace is ERC1155Receiver {
      * @dev This function is called at the end of a `safeTransferFrom` after the balance has been updated.
      */
     function onERC1155Received(
-        address operator,
-        address from,
-        uint256 id,
-        uint256 value,
-        bytes calldata data
+        address /*operator*/,
+        address /*from*/,
+        uint256 /*id*/,
+        uint256 /*value*/,
+        bytes calldata /*data*/
     ) public virtual override returns (bytes4) {
         return this.onERC1155Received.selector;
     }
@@ -180,11 +164,11 @@ contract Marketplace is ERC1155Receiver {
      * @dev This function is called at the end of a `safeBatchTransferFrom` after the balances have been updated.
      */
     function onERC1155BatchReceived(
-        address operator,
-        address from,
-        uint256[] calldata ids,
-        uint256[] calldata values,
-        bytes calldata data
+        address /*operator*/,
+        address /*from*/,
+        uint256[] calldata /*ids*/,
+        uint256[] calldata /*values*/,
+        bytes calldata /*data*/
     ) public virtual override returns (bytes4) {
         return this.onERC1155BatchReceived.selector;
     }
