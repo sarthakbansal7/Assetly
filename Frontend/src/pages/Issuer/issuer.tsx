@@ -10,6 +10,9 @@ import { IconHome, IconMessage, IconUser } from "@tabler/icons-react";
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Copy } from 'lucide-react';
+import { uploadFileToIPFS, uploadJSONToIPFS } from '@/utils/ipfs';
+import marketplaceABI from '@/utils/marketplaceabi';
+import { ethers } from 'ethers';
 
 // Extend Window interface for MetaMask
 declare global {
@@ -29,6 +32,16 @@ const assetTypes = [
   'Stocks',
   'CarbonCredit',
 ];
+
+const priceTokens = [
+  'AVAX',
+  'USDC',
+  'DAI',
+  'USDT',
+];
+
+// Contract addresses (replace with your deployed contract addresses)
+const MARKETPLACE_CONTRACT_ADDRESS = "0x3075bFF4A6aEC6A2981BE9150aD85ec15e05aF81"; // TODO: Replace with your deployed marketplace address
 
 // Avalanche Fuji C-Chain network configuration
 const AVALANCHE_FUJI_CHAIN_ID = '0xA869'; // 43113 in hex
@@ -79,11 +92,12 @@ const Issuer: React.FC = () => {
   const [nftTitle, setNftTitle] = useState('');
   const [nftDescription, setNftDescription] = useState('');
   const [nftAssetType, setNftAssetType] = useState(0);
-  const [nftPriceToken, setNftPriceToken] = useState('USDC');
+  const [nftPriceToken, setNftPriceToken] = useState('AVAX');
   const [nftEarnXP, setNftEarnXP] = useState('32000');
-  const [nftImageFile, setNftImageFile] = useState<File | null>(null);
+  const [nftImageFiles, setNftImageFiles] = useState<File[]>([]);
   const [nftId, setNftId] = useState('');
   const [nftAmount, setNftAmount] = useState('');
+  const [isMinting, setIsMinting] = useState(false);
 
   // List Asset form state
   const [listTokenId, setListTokenId] = useState('');
@@ -95,21 +109,108 @@ const Issuer: React.FC = () => {
   const [mintedAssetId, setMintedAssetId] = useState<string | null>(null);
 
   const handleNftImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setNftImageFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setNftImageFiles(prev => [...prev, ...files]);
     }
   };
 
+  const removeImage = (index: number) => {
+    setNftImageFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleMintNFT = async () => {
+    if (!account || !window.ethereum) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    setIsMinting(true);
+    
     try {
-      // Simulate minting success
-      const mockAssetId = `NFT-${Math.random().toString(36).substr(2, 9)}`;
-      setMintedAssetId(mockAssetId);
+      // 1. Upload images to IPFS
+      const imageUrls = [];
+      for (const file of nftImageFiles) {
+        const imageUrl = await uploadFileToIPFS(file);
+        imageUrls.push(imageUrl);
+      }
+
+      // 2. Create metadata object
+      const metadata = {
+        name: nftTitle,
+        description: nftDescription,
+        images: imageUrls,
+        attributes: [
+          {
+            trait_type: "Asset Type",
+            value: assetTypes[nftAssetType]
+          },
+          {
+            trait_type: "Price Token",
+            value: nftPriceToken
+          },
+          {
+            trait_type: "Earn XP",
+            value: parseInt(nftEarnXP)
+          }
+        ],
+        external_url: "",
+        animation_url: ""
+      };
+
+      // 3. Upload metadata to IPFS
+      const metadataUri = await uploadJSONToIPFS(metadata);
+
+      // 4. Call marketplace contract's mintAsset function
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      // Ensure we're using a valid contract address
+      if (!MARKETPLACE_CONTRACT_ADDRESS || 
+          MARKETPLACE_CONTRACT_ADDRESS === "0x..." || 
+          MARKETPLACE_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
+        throw new Error("Marketplace contract address not configured. Please deploy the contract first.");
+      }
+      
+      const marketplaceContract = new ethers.Contract(
+        MARKETPLACE_CONTRACT_ADDRESS,
+        marketplaceABI,
+        signer
+      );
+
+      // Call mintAsset function
+      const tx = await marketplaceContract.mintAsset(
+        parseInt(nftId),
+        parseInt(nftAmount),
+        metadataUri
+      );
+
+      toast.success('Transaction submitted! Waiting for confirmation...');
+      
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+      
+      setMintedAssetId(`${nftId}`);
       setShowSuccessDialog(true);
       setShowNFTDialog(false);
       toast.success('NFT minted successfully!');
-    } catch (error) {
-      toast.error('Failed to mint NFT');
+
+    } catch (error: any) {
+      console.error('Minting error:', error);
+      
+      if (error.code === 4001) {
+        toast.error('Transaction cancelled by user');
+      } else if (error.message?.includes('ENS')) {
+        toast.error('Network error: ENS not supported on this network. Please check contract address.');
+      } else if (error.message?.includes('resolver')) {
+        toast.error('Network configuration error. Please check your connection to Avalanche Fuji.');
+      } else if (error.reason) {
+        toast.error(`Minting failed: ${error.reason}`);
+      } else {
+        toast.error('Failed to mint NFT. Please try again.');
+      }
+    } finally {
+      setIsMinting(false);
     }
   };
 
@@ -142,9 +243,9 @@ const Issuer: React.FC = () => {
     setMintStep(1);
     setNftTitle('');
     setNftDescription('');
-    setNftImageFile(null);
+    setNftImageFiles([]);
     setNftAssetType(0);
-    setNftPriceToken('USDC');
+    setNftPriceToken('AVAX');
     setNftEarnXP('32000');
     setNftId('');
     setNftAmount('');
@@ -510,31 +611,36 @@ const Issuer: React.FC = () => {
                         <Input id="nftDescription" value={nftDescription} onChange={e => setNftDescription(e.target.value)} placeholder="Enter description" type="text" className="shadow-input" />
                       </LabelInputContainer>
                       <LabelInputContainer>
-                        <Label htmlFor="nftImage">Upload Image</Label>
+                        <Label htmlFor="nftImage">Upload Images</Label>
                         <div className="flex flex-col gap-2">
                           <Input
                             id="nftImage"
                             type="file"
                             accept="image/*"
+                            multiple
                             onChange={handleNftImageUpload}
                             className="shadow-input file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
                           />
-                          {nftImageFile && (
-                            <div className="relative w-32 h-32">
-                              <img
-                                src={URL.createObjectURL(nftImageFile)}
-                                alt="Preview"
-                                className="rounded-lg object-cover w-full h-full"
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                className="absolute top-1 right-1 h-6 w-6"
-                                onClick={() => setNftImageFile(null)}
-                              >
-                                ×
-                              </Button>
+                          {nftImageFiles.length > 0 && (
+                            <div className="grid grid-cols-3 gap-2 mt-2">
+                              {nftImageFiles.map((file, index) => (
+                                <div key={index} className="relative w-full h-24">
+                                  <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={`Preview ${index + 1}`}
+                                    className="rounded-lg object-cover w-full h-full"
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="absolute top-1 right-1 h-6 w-6 bg-red-500 hover:bg-red-600 text-white"
+                                    onClick={() => removeImage(index)}
+                                  >
+                                    ×
+                                  </Button>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -550,11 +656,9 @@ const Issuer: React.FC = () => {
                       <LabelInputContainer>
                         <Label htmlFor="nftPriceToken">Price Token</Label>
                         <select id="nftPriceToken" value={nftPriceToken} onChange={e => setNftPriceToken(e.target.value)} className="shadow-input rounded-md px-3 py-2">
-                          <option value="AVAX">AVAX</option>
-                          <option value="USDC">USDC</option>
-                          <option value="DAI">DAI</option>
-                          <option value="USDT">USDT</option>
-                          {/* Add more tokens as needed */}
+                          {priceTokens.map((token) => (
+                            <option key={token} value={token}>{token}</option>
+                          ))}
                         </select>
                       </LabelInputContainer>
                       <LabelInputContainer>
@@ -583,8 +687,8 @@ const Issuer: React.FC = () => {
                     <Button 
       type="button" 
       onClick={() => {
-        if (!nftTitle || !nftDescription || !nftImageFile) {
-          toast.error('Please fill all required fields');
+        if (!nftTitle || !nftDescription || nftImageFiles.length === 0) {
+          toast.error('Please fill all required fields and upload at least one image');
           return;
         }
         setMintStep(2);
@@ -607,9 +711,15 @@ const Issuer: React.FC = () => {
           }
           handleMintNFT();
         }}
-        className="bg-marketplace-blue text-white hover:bg-marketplace-blue/90 rounded-md"
+        disabled={isMinting}
+        className="bg-marketplace-blue text-white hover:bg-marketplace-blue/90 rounded-md disabled:opacity-50"
       >
-        Mint NFT
+        <div className="flex items-center space-x-2">
+          {isMinting && (
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          )}
+          <span>{isMinting ? 'Minting...' : 'Mint NFT'}</span>
+        </div>
       </Button>
                     </>
                   )}
