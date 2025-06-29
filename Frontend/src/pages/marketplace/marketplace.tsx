@@ -108,6 +108,62 @@ const Marketplace: React.FC = () => {
               { trait_type: 'Purity', value: '99.9%' },
               { trait_type: 'Storage', value: 'Secured Vault' }
             ]
+          },
+
+          // Stock Listings
+          {
+            asset_id: 'stk-001',
+            name: 'Apple Inc. Shares',
+            description: 'Tokenized shares of Apple Inc. (AAPL)',
+            image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3',
+            price: '195',
+            attributes: [
+              { trait_type: 'Asset Type', value: 'Stocks' },
+              { trait_type: 'Symbol', value: 'AAPL' },
+              { trait_type: 'Exchange', value: 'NASDAQ' },
+              { trait_type: 'Sector', value: 'Technology' }
+            ]
+          },
+          {
+            asset_id: 'stk-002',
+            name: 'Tesla Inc. Shares',
+            description: 'Tokenized shares of Tesla Inc. (TSLA)',
+            image: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89',
+            price: '245',
+            attributes: [
+              { trait_type: 'Asset Type', value: 'Stocks' },
+              { trait_type: 'Symbol', value: 'TSLA' },
+              { trait_type: 'Exchange', value: 'NASDAQ' },
+              { trait_type: 'Sector', value: 'Automotive' }
+            ]
+          },
+
+          // Carbon Credit Listings
+          {
+            asset_id: 'cc-001',
+            name: 'Amazon Rainforest Conservation',
+            description: 'Premium carbon credits from verified Amazon conservation project',
+            image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e',
+            price: '25',
+            attributes: [
+              { trait_type: 'Asset Type', value: 'CarbonCredit' },
+              { trait_type: 'Standard', value: 'VCS' },
+              { trait_type: 'Project Type', value: 'Forest Conservation' },
+              { trait_type: 'CO2 Offset', value: '1 tonne' }
+            ]
+          },
+          {
+            asset_id: 'cc-002',
+            name: 'Renewable Energy Credits',
+            description: 'Carbon credits from wind and solar energy projects',
+            image: 'https://images.unsplash.com/photo-1466611653911-95081537e5b7',
+            price: '18',
+            attributes: [
+              { trait_type: 'Asset Type', value: 'CarbonCredit' },
+              { trait_type: 'Standard', value: 'Gold Standard' },
+              { trait_type: 'Project Type', value: 'Renewable Energy' },
+              { trait_type: 'CO2 Offset', value: '1 tonne' }
+            ]
           }
         ];
         setListings(mockData);
@@ -153,6 +209,20 @@ const Marketplace: React.FC = () => {
     return assetType?.toLowerCase() === 'commodity';
   }) || [];
 
+  const stockListings = listings?.filter(listing => {
+    const assetType = listing.attributes?.find(attr => 
+      attr.trait_type === 'Asset Type'
+    )?.value;
+    return assetType?.toLowerCase() === 'stocks';
+  }) || [];
+
+  const carbonCreditListings = listings?.filter(listing => {
+    const assetType = listing.attributes?.find(attr => 
+      attr.trait_type === 'Asset Type'
+    )?.value;
+    return assetType?.toLowerCase() === 'carboncredit';
+  }) || [];
+
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b">
@@ -173,7 +243,7 @@ const Marketplace: React.FC = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="realEstate" className="w-full">
-          <TabsList className="w-[800px] mx-auto grid grid-cols-3 gap-4 mb-8 bg-transparent">
+          <TabsList className="w-[1200px] mx-auto grid grid-cols-5 gap-4 mb-8 bg-transparent">
             <TabCard
               title="Real Estate"
               subtitle="Premium Properties"
@@ -192,6 +262,18 @@ const Marketplace: React.FC = () => {
               bgImage="https://images.unsplash.com/photo-1610375461246-83df859d849d?w=800&auto=format&fit=crop&q=60"
               value="commodities"
             />
+            <TabCard
+              title="Stocks"
+              subtitle="Share Certificates"
+              bgImage="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=60"
+              value="stocks"
+            />
+            <TabCard
+              title="Carbon Credits"
+              subtitle="Environmental Assets"
+              bgImage="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&auto=format&fit=crop&q=60"
+              value="carbonCredits"
+            />
           </TabsList>
 
           <TabsContent value="realEstate">
@@ -202,6 +284,12 @@ const Marketplace: React.FC = () => {
           </TabsContent>
           <TabsContent value="commodities">
             <ListingsGrid listings={commodityListings} />
+          </TabsContent>
+          <TabsContent value="stocks">
+            <ListingsGrid listings={stockListings} />
+          </TabsContent>
+          <TabsContent value="carbonCredits">
+            <ListingsGrid listings={carbonCreditListings} />
           </TabsContent>
         </Tabs>
       </div>
