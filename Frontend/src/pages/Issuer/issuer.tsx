@@ -13,6 +13,7 @@ import { Copy } from 'lucide-react';
 import { uploadFileToIPFS, uploadJSONToIPFS } from '@/utils/ipfs';
 import marketplaceABI from '@/utils/marketplaceabi';
 import { ethers } from 'ethers';
+import { ErrorPopup, useErrorPopup } from '@/components/ui/error-popup';
 
 // Extend Window interface for MetaMask
 declare global {
@@ -76,6 +77,9 @@ const navItems = [
 ];
 
 const Issuer: React.FC = () => {
+  // Error popup hook
+  const { error, showError, hideError } = useErrorPopup();
+
   // Wallet connection state
   const [isConnected, setIsConnected] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
@@ -205,6 +209,16 @@ const Issuer: React.FC = () => {
       } else {
         toast.error('Failed to mint NFT. Please try again.');
       }
+
+      // Show error popup for transaction failures and gas estimation errors
+      if (error.code === 'UNPREDICTABLE_GAS_LIMIT' || 
+          error.code === 'INSUFFICIENT_FUNDS' ||
+          error.message?.includes('gas') ||
+          error.message?.includes('transaction') ||
+          error.message?.includes('revert') ||
+          (error.code !== 4001 && !error.message?.includes('user'))) {
+        showError();
+      }
     } finally {
       setIsMinting(false);
     }
@@ -230,6 +244,7 @@ const Issuer: React.FC = () => {
       // Get provider and signer
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+
 
       // Create contract instance
       const marketplaceContract = new ethers.Contract(
@@ -287,6 +302,16 @@ const Issuer: React.FC = () => {
         toast.error('Amount must be greater than 0');
       } else {
         toast.error(`Failed to list asset: ${error.message || 'Unknown error'}`);
+      }
+
+      // Show error popup for transaction failures and gas estimation errors
+      if (error.code === 'UNPREDICTABLE_GAS_LIMIT' || 
+          error.code === 'INSUFFICIENT_FUNDS' ||
+          error.message?.includes('gas') ||
+          error.message?.includes('transaction') ||
+          error.message?.includes('revert') ||
+          (error.code !== 'ACTION_REJECTED' && !error.message?.includes('user'))) {
+        showError();
       }
     } finally {
       setIsListingAsset(false);
@@ -379,11 +404,13 @@ const Issuer: React.FC = () => {
                 console.error('Error adding network:', addError);
                 toast.error('Failed to add C-Chain Fuji network');
                 setIsCorrectNetwork(false);
+                showError();
               }
             } else {
               console.error('Error switching network:', switchError);
               toast.error('Failed to switch to C-Chain Fuji network');
               setIsCorrectNetwork(false);
+              showError();
             }
           }
         } else {
@@ -839,6 +866,13 @@ const Issuer: React.FC = () => {
                 </div>
               </DialogContent>
             </Dialog>
+
+            {/* Error Popup */}
+            <ErrorPopup
+              isVisible={error.isVisible}
+              message={error.message}
+              onClose={hideError}
+            />
         </BackgroundLines>
       </main>
     </div>
