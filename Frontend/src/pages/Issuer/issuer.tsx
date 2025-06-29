@@ -51,8 +51,8 @@ const Issuer: React.FC = () => {
   const [nftAmount, setNftAmount] = useState('');
 
   // List Asset form state
-  const [listType, setListType] = useState<'nft'>('nft');
-  const [listAssetId, setListAssetId] = useState('');
+  const [listTokenId, setListTokenId] = useState('');
+  const [listAmount, setListAmount] = useState('');
   const [listPrice, setListPrice] = useState('');
 
   // Success states
@@ -81,9 +81,23 @@ const Issuer: React.FC = () => {
   const handleListAsset = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Validate required fields
+      if (!listTokenId || !listAmount || !listPrice) {
+        toast.error('Please fill all required fields');
+        return;
+      }
+      
+      // TODO: Implement actual listing logic here
+      console.log('Listing asset:', { listTokenId, listAmount, listPrice });
+      
       // Simulate listing success
       toast.success('Asset listed successfully!');
       setShowListDialog(false);
+      
+      // Reset form
+      setListTokenId('');
+      setListAmount('');
+      setListPrice('');
     } catch (error) {
       toast.error('Failed to list asset');
     }
@@ -332,16 +346,20 @@ const Issuer: React.FC = () => {
               <DialogContent className="sm:max-w-lg rounded-2xl border border-neutral-200/30 dark:border-neutral-800 bg-white/90 dark:bg-black/90 shadow-2xl p-6 md:p-10">
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">List Asset to Marketplace</DialogTitle>
-                  <DialogDescription className="text-base text-neutral-600 dark:text-neutral-300 mb-4">Fill in the details to list your RWA NFT on the marketplace.</DialogDescription>
+                  <DialogDescription className="text-base text-neutral-600 dark:text-neutral-300 mb-4">Enter the token ID, amount, and price to list your asset on the marketplace.</DialogDescription>
                 </DialogHeader>
                 <form className="my-6 space-y-5" onSubmit={handleListAsset}>
                   <LabelInputContainer>
-                    <Label htmlFor="listAssetId">Asset Object ID</Label>
-                    <Input id="listAssetId" value={listAssetId} onChange={e => setListAssetId(e.target.value)} placeholder="Enter Asset NFT Object ID" type="text" className="shadow-input font-mono text-sm" />
+                    <Label htmlFor="listTokenId">Token ID</Label>
+                    <Input id="listTokenId" value={listTokenId} onChange={e => setListTokenId(e.target.value)} placeholder="Enter token ID" type="number" className="shadow-input" />
                   </LabelInputContainer>
                   <LabelInputContainer>
-                    <Label htmlFor="listPrice">Price (u64)</Label>
-                    <Input id="listPrice" value={listPrice} onChange={e => setListPrice(e.target.value)} placeholder="Enter listing price" type="number" className="shadow-input" />
+                    <Label htmlFor="listAmount">Amount</Label>
+                    <Input id="listAmount" value={listAmount} onChange={e => setListAmount(e.target.value)} placeholder="Enter amount to list" type="number" className="shadow-input" />
+                  </LabelInputContainer>
+                  <LabelInputContainer>
+                    <Label htmlFor="listPrice">Price</Label>
+                    <Input id="listPrice" value={listPrice} onChange={e => setListPrice(e.target.value)} placeholder="Enter price per token" type="number" className="shadow-input" />
                   </LabelInputContainer>
                   
                   <DialogFooter>
