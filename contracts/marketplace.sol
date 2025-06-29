@@ -3,55 +3,19 @@ pragma solidity ^0.8.24;
 
 import {AssetToken} from "./AssetToken.sol";
 import {CrossChainBurnAndMintERC1155} from "./CrossChainBurnAndMintERC1155.sol";
+import {ChainlinkFeaturedListings} from "./chainlinkHelper.sol";
 import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 
-// Chainlink VRF interfaces (you'll need to install @chainlink/contracts)
-interface VRFCoordinatorV2Interface {
-    function requestRandomWords(
-        bytes32 keyHash,
-        uint64 subId,
-        uint16 minimumRequestConfirmations,
-        uint32 callbackGasLimit,
-        uint32 numWords
-    ) external returns (uint256 requestId);
-}
-
-abstract contract VRFConsumerBaseV2 {
-    error OnlyCoordinatorCanFulfill(address have, address want);
-    address private immutable vrfCoordinator;
-
-    constructor(address _vrfCoordinator) {
-        vrfCoordinator = _vrfCoordinator;
-    }
-
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal virtual;
-
-    function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
-        if (msg.sender != vrfCoordinator) {
-            revert OnlyCoordinatorCanFulfill(msg.sender, vrfCoordinator);
-        }
-        fulfillRandomWords(requestId, randomWords);
-    }
-}
-
 /**
- * @title Marketplace for AssetToken (ERC1155) with Chainlink VRF
- * @notice Supports listing, buying, and daily random featured selection using Chainlink VRF
+ * @title Marketplace for AssetToken (ERC1155) with Chainlink VRF & Automation
+ * @notice Optimized marketplace with automated daily featured selection
  */
-contract Marketplace is ERC1155Receiver, VRFConsumerBaseV2 {
+contract Marketplace is ERC1155Receiver, ChainlinkFeaturedListings {
     struct Listing {
         address issuer;
         uint256 price;
         uint256 amount;
     }
-
-    // VRF Configuration
-    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
-    bytes32 private immutable i_gasLane;
-    uint64 private immutable i_subscriptionId;
-    uint16 private constant REQUEST_CONFIRMATIONS = 3;
-    uint32 private constant CALLBACK_GAS_LIMIT = 100000;
-    uint32 private constant NUM_WORDS = 3; // We want 3 random numbers
 
     AssetToken public immutable assetToken;
     address public owner;
@@ -63,16 +27,7 @@ contract Marketplace is ERC1155Receiver, VRFConsumerBaseV2 {
     
     // Active token IDs that have listings
     uint256[] public activeListings;
-    mapping(uint256 => uint256) public tokenIdToActiveIndex; // tokenId => index in activeListings
-    
-    // Featured listings (selected daily via VRF)
-    uint256[] public featuredListings; // Array of 3 featured token IDs
-    uint256 public lastFeaturedUpdate; // Timestamp of last update
-    uint256 public constant FEATURED_UPDATE_INTERVAL = 1 days;
-    
-    // VRF state
-    uint256 private s_requestId;
-    bool public vrfRequestPending;
+    mapping(uint256 => uint256) public tokenIdToActiveIndex;
 
     // Events
     event AssetListed(address indexed issuer, uint256 indexed tokenId, uint256 price, uint256 amount);
@@ -81,9 +36,6 @@ contract Marketplace is ERC1155Receiver, VRFConsumerBaseV2 {
     event ProceedsWithdrawn(address indexed issuer, uint256 amount);
     event AssetMinted(address indexed minter, uint256 indexed tokenId, uint256 amount, string tokenUri);
     event AssetBatchMinted(address indexed minter, uint256[] tokenIds, uint256[] amounts, string[] tokenUris);
-    event FeaturedListingsRequested(uint256 indexed requestId, uint256 totalListings);
-    event FeaturedListingsUpdated(uint256[] featuredTokenIds, uint256 timestamp);
-    event RandomWordsReceived(uint256 indexed requestId, uint256[] randomWords);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not owner");
@@ -460,6 +412,26 @@ contract Marketplace is ERC1155Receiver, VRFConsumerBaseV2 {
     }
 
     /**
+     * @notice Manual trigger for featured listings update (emergency use)
+     * @dev Owner can manually trigger VRF request regardless of time constraints
+     */
+    function emergencyRequestFeaturedListings() external onlyOwner {
+        require(!vrfRequestPending, "VRF request already pending");
+        require(activeListings.length >= 3, "Need at least 3 active listings");
+
+        vrfRequestPending = true;
+        s_requestId = i_vrfCoordinator.requestRandomWords(
+            i_gasLane,
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            CALLBACK_GAS_LIMIT,
+            NUM_WORDS
+        );
+
+        emit FeaturedListingsRequested(s_requestId, activeListings.length);
+    }
+
+    /**
      * @notice Transfer ownership to new address (owner only)
      * @param newOwner New owner address
      */
@@ -500,5 +472,90 @@ contract Marketplace is ERC1155Receiver, VRFConsumerBaseV2 {
             !vrfRequestPending &&
             activeListings.length >= 3
         );
+    }
+
+    /**
+     * @notice Chainlink Automation - Check if upkeep is needed
+     * @dev This function is called by Chainlink Automation nodes to check if performUpkeep should be called
+     * @param checkData Encoded data (not used in this implementation)
+     * @return upkeepNeeded True if upkeep should be performed
+     * @return performData Data to pass to performUpkeep (not used)
+     */
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    ) external view override returns (bool upkeepNeeded, bytes memory /* performData */) {
+        // Upkeep is needed if:
+        // 1. 24 hours have passed since last update
+        // 2. No VRF request is currently pending
+        // 3. There are at least 3 active listings
+        // 4. Contract has enough balance for VRF request (optional check)
+        upkeepNeeded = (
+            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL &&
+            !vrfRequestPending &&
+            activeListings.length >= 3
+        );
+        
+        // Return empty bytes for performData as we don't need to pass any data
+        return (upkeepNeeded, "");
+    }
+
+    /**
+     * @notice Chainlink Automation - Perform the upkeep
+     * @dev This function is called by Chainlink Automation when checkUpkeep returns true
+     * @param performData Data from checkUpkeep (not used)
+     */
+    function performUpkeep(bytes calldata /* performData */) external override {
+        // Re-validate conditions (important for security)
+        require(
+            block.timestamp >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL,
+            "Too early for upkeep"
+        );
+        require(!vrfRequestPending, "VRF request already pending");
+        require(activeListings.length >= 3, "Not enough active listings");
+
+        // Request new featured listings via VRF
+        vrfRequestPending = true;
+        s_requestId = i_vrfCoordinator.requestRandomWords(
+            i_gasLane,
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            CALLBACK_GAS_LIMIT,
+            NUM_WORDS
+        );
+
+        emit FeaturedListingsRequested(s_requestId, activeListings.length);
+    }
+
+    /**
+     * @notice Get automation status information
+     * @return needsUpkeep Whether upkeep is currently needed
+     * @return timeSinceLastUpdate Seconds since last featured update
+     * @return timeUntilNextUpdate Seconds until next update is allowed (0 if ready)
+     * @return activeListingsCount Number of active listings
+     */
+    function getAutomationStatus() external view returns (
+        bool needsUpkeep,
+        uint256 timeSinceLastUpdate,
+        uint256 timeUntilNextUpdate,
+        uint256 activeListingsCount
+    ) {
+        uint256 currentTime = block.timestamp;
+        timeSinceLastUpdate = currentTime - lastFeaturedUpdate;
+        
+        if (currentTime >= lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL) {
+            timeUntilNextUpdate = 0;
+        } else {
+            timeUntilNextUpdate = (lastFeaturedUpdate + FEATURED_UPDATE_INTERVAL) - currentTime;
+        }
+        
+        needsUpkeep = (
+            timeUntilNextUpdate == 0 &&
+            !vrfRequestPending &&
+            activeListings.length >= 3
+        );
+        
+        activeListingsCount = activeListings.length;
+        
+        return (needsUpkeep, timeSinceLastUpdate, timeUntilNextUpdate, activeListingsCount);
     }
 }
